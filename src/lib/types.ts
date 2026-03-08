@@ -43,4 +43,11 @@ export interface WatchlistItem {
   name: string;
 }
 
+export interface SearchResult {
+  symbol: string;
+  name: string;
+  type: string;
+  region: string;
+}
+
 export type TimeRange = '1D' | '1W' | '1M' | '3M' | '1Y';
