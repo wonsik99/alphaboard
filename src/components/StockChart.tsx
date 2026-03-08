@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useStockTimeSeries, useStockQuote } from '@/hooks/useStockData';
+import { StockSearch } from '@/components/StockSearch';
 import type { TimeRange } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -21,19 +21,10 @@ const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '1Y'];
 
 export function StockChart() {
   const [symbol, setSymbol] = useState('AAPL');
-  const [searchInput, setSearchInput] = useState('');
   const [range, setRange] = useState<TimeRange>('1M');
 
   const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol, range);
   const { data: quote } = useStockQuote(symbol);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchInput.trim()) {
-      setSymbol(searchInput.trim().toUpperCase());
-      setSearchInput('');
-    }
-  };
 
   const isPositive = quote ? quote.change >= 0 : true;
   const strokeColor = isPositive ? 'hsl(142, 71%, 45%)' : 'hsl(0, 84%, 60%)';
@@ -62,18 +53,10 @@ export function StockChart() {
               </div>
             )}
           </div>
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="종목 검색 (예: TSLA)"
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-                className="pl-9 w-44 bg-secondary border-border"
-              />
-            </div>
-            <Button type="submit" size="sm" variant="secondary">검색</Button>
-          </form>
+          <StockSearch
+            onSelect={(sym) => setSymbol(sym)}
+            className="w-56"
+          />
         </div>
         <div className="flex gap-1 mt-3">
           {TIME_RANGES.map(r => (

@@ -13,6 +13,7 @@ interface RequestBody {
   symbol?: string;
   symbols?: string[];
   range?: string;
+  keywords?: string;
 }
 
 async function fetchAV(params: Record<string, string>) {
@@ -154,6 +155,22 @@ Deno.serve(async (req) => {
           const q = parseQuote(d);
           return q || { symbol: symbols[i], name: symbols[i], price: 0, change: 0, changePercent: 0, volume: 0, high: 0, low: 0, open: 0, previousClose: 0 };
         });
+        break;
+      }
+      case 'search': {
+        const keywords = (body.keywords || '').trim();
+        if (!keywords) {
+          result = [];
+          break;
+        }
+        const data = await fetchAV({ function: 'SYMBOL_SEARCH', keywords });
+        const matches = (data as { bestMatches?: Array<Record<string, string>> }).bestMatches || [];
+        result = matches.slice(0, 8).map(m => ({
+          symbol: m['1. symbol'],
+          name: m['2. name'],
+          type: m['3. type'],
+          region: m['4. region'],
+        }));
         break;
       }
       default:
