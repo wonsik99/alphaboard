@@ -62,7 +62,7 @@ export function StockChart() {
           </div>
           <StockSearch
             onSelect={(sym) => setSymbol(sym)}
-            className="w-56"
+            className="w-72"
           />
         </div>
         <div className="flex items-center gap-3 mt-3">
