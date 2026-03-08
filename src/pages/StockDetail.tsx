@@ -44,7 +44,7 @@ const StockDetail = () => {
   const strokeColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
   const fillColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
 
-  const relatedNews = news?.filter(a => a.tickers.includes(symbol || ''))?.slice(0, 5);
+  const relatedNews = companyNews?.slice(0, 10);
 
   return (
     <div className="min-h-screen bg-background">
