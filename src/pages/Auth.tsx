@@ -45,7 +45,15 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
+        <CardHeader className="text-center relative">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute left-4 top-4 rounded-full h-8 w-8"
+            onClick={() => navigate('/')}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div className="flex justify-center mb-3">
             <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
               <BarChart3 className="h-7 w-7 text-primary-foreground" />
