@@ -7,10 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useStockQuote, useStockTimeSeries, useMarketNews } from '@/hooks/useStockData';
 import { useWatchlist } from '@/hooks/useWatchlist';
+import { useI18n } from '@/hooks/useI18n';
 import type { TimeRange } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, Star, TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { ko, enUS } from 'date-fns/locale';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -31,6 +33,8 @@ const StockDetail = () => {
   const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol || '', range);
   const { data: news } = useMarketNews();
   const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
+  const { locale, t } = useI18n();
+  const dateLocale = locale === 'ko' ? ko : enUS;
 
   const inWatchlist = symbol ? isInWatchlist(symbol) : false;
   const isPositive = quote ? quote.change >= 0 : true;
@@ -62,7 +66,7 @@ const StockDetail = () => {
                 }}
               >
                 <Star className={cn('h-4 w-4 mr-1', inWatchlist && 'fill-current')} />
-                {inWatchlist ? '관심 종목' : '추가'}
+                {inWatchlist ? t('inWatchlist') : t('add')}
               </Button>
             </div>
           )}
@@ -118,13 +122,13 @@ const StockDetail = () => {
                   <Tooltip
                     contentStyle={{ backgroundColor: 'hsl(222, 47%, 9%)', border: '1px solid hsl(222, 30%, 16%)', borderRadius: '8px', fontSize: '12px', fontFamily: 'JetBrains Mono' }}
                     labelStyle={{ color: 'hsl(210, 40%, 96%)' }}
-                    formatter={(value: number) => [`$${value.toFixed(2)}`, '종가']}
+                    formatter={(value: number) => [`$${value.toFixed(2)}`, t('close')]}
                   />
                   <Area type="monotone" dataKey="close" stroke={strokeColor} strokeWidth={2} fill="url(#detailGradient)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[350px] flex items-center justify-center text-muted-foreground">데이터를 불러올 수 없습니다</div>
+              <div className="h-[350px] flex items-center justify-center text-muted-foreground">{t('noChartData')}</div>
             )}
           </CardContent>
         </Card>
@@ -133,11 +137,11 @@ const StockDetail = () => {
         {quote && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: '시가', value: `$${quote.open.toFixed(2)}` },
-              { label: '고가', value: `$${quote.high.toFixed(2)}` },
-              { label: '저가', value: `$${quote.low.toFixed(2)}` },
-              { label: '전일 종가', value: `$${quote.previousClose.toFixed(2)}` },
-              { label: '거래량', value: quote.volume.toLocaleString() },
+              { label: t('open'), value: `$${quote.open.toFixed(2)}` },
+              { label: t('high'), value: `$${quote.high.toFixed(2)}` },
+              { label: t('low'), value: `$${quote.low.toFixed(2)}` },
+              { label: t('prevClose'), value: `$${quote.previousClose.toFixed(2)}` },
+              { label: t('volume'), value: quote.volume.toLocaleString() },
             ].map(item => (
               <Card key={item.label} className="bg-card border-border">
                 <CardContent className="p-3">
@@ -152,7 +156,7 @@ const StockDetail = () => {
         {/* Related news */}
         {relatedNews && relatedNews.length > 0 && (
           <Card className="bg-card border-border">
-            <CardHeader><CardTitle className="text-lg">관련 뉴스</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-lg">{t('relatedNews')}</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {relatedNews.map((article, i) => (
                 <a key={i} href={article.url} target="_blank" rel="noopener noreferrer" className="block pb-3 border-b border-border last:border-0 hover:bg-secondary/30 -mx-2 px-2 py-2 rounded-md transition-colors group">
@@ -163,9 +167,9 @@ const StockDetail = () => {
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className="text-xs text-muted-foreground">{article.source}</span>
                     <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true })}</span>
+                    <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true, locale: dateLocale })}</span>
                     <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', article.sentiment === 'bullish' && 'bg-gain/10 text-gain', article.sentiment === 'bearish' && 'bg-loss/10 text-loss')}>
-                      {article.sentiment === 'bullish' ? '긍정' : article.sentiment === 'bearish' ? '부정' : '중립'}
+                      {article.sentiment === 'bullish' ? t('bullish') : article.sentiment === 'bearish' ? t('bearish') : t('neutral')}
                     </Badge>
                   </div>
                 </a>

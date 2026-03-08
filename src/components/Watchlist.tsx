@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBatchQuotes } from '@/hooks/useStockData';
 import { useWatchlist } from '@/hooks/useWatchlist';
+import { useI18n } from '@/hooks/useI18n';
 import { cn } from '@/lib/utils';
 import { X, Plus, Star, TrendingUp, TrendingDown } from 'lucide-react';
 import { useState } from 'react';
@@ -15,6 +16,7 @@ export function Watchlist() {
   const { data: quotes, isLoading } = useBatchQuotes(symbols);
   const [newSymbol, setNewSymbol] = useState('');
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,12 +32,12 @@ export function Watchlist() {
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <Star className="h-5 w-5 text-primary" />
-            관심 종목
+            {t('watchlist')}
           </CardTitle>
         </div>
         <form onSubmit={handleAdd} className="flex gap-2 mt-2">
           <Input
-            placeholder="종목 추가 (예: NVDA)"
+            placeholder={t('addStock')}
             value={newSymbol}
             onChange={e => setNewSymbol(e.target.value)}
             className="bg-secondary border-border text-sm"
@@ -54,7 +56,7 @@ export function Watchlist() {
             </div>
           ))
         ) : watchlist.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">관심 종목을 추가해보세요</p>
+          <p className="text-sm text-muted-foreground py-4 text-center">{t('emptyWatchlist')}</p>
         ) : (
           watchlist.map(item => {
             const quote = quotes?.find(q => q.symbol === item.symbol);

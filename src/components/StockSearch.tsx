@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { useStockSearch } from '@/hooks/useStockData';
+import { useI18n } from '@/hooks/useI18n';
 import { Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
 
 interface StockSearchProps {
   onSelect: (symbol: string, name: string) => void;
@@ -15,7 +15,7 @@ export function StockSearch({ onSelect, className }: StockSearchProps) {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
+  const { t } = useI18n();
 
   // Debounce
   useEffect(() => {
@@ -50,7 +50,7 @@ export function StockSearch({ onSelect, className }: StockSearchProps) {
           <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
         )}
         <Input
-          placeholder="종목 검색 (예: AAPL, Tesla)"
+          placeholder={t('searchPlaceholder')}
           value={query}
           onChange={e => {
             setQuery(e.target.value);
@@ -83,7 +83,7 @@ export function StockSearch({ onSelect, className }: StockSearchProps) {
 
       {open && debouncedQuery && !isLoading && results && results.length === 0 && (
         <div className="absolute z-50 top-full mt-1 w-full bg-card border border-border rounded-lg shadow-xl p-3 text-center text-sm text-muted-foreground">
-          검색 결과가 없습니다
+          {t('noResults')}
         </div>
       )}
     </div>

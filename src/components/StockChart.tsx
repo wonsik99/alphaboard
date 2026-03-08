@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useStockTimeSeries, useStockQuote } from '@/hooks/useStockData';
 import { StockSearch } from '@/components/StockSearch';
+import { useI18n } from '@/hooks/useI18n';
 import type { TimeRange } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,6 +23,7 @@ const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '1Y'];
 export function StockChart() {
   const [symbol, setSymbol] = useState('AAPL');
   const [range, setRange] = useState<TimeRange>('1M');
+  const { t } = useI18n();
 
   const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol, range);
   const { data: quote } = useStockQuote(symbol);
@@ -108,7 +110,7 @@ export function StockChart() {
                 }}
                 labelStyle={{ color: 'hsl(210, 40%, 96%)' }}
                 itemStyle={{ color: strokeColor }}
-                formatter={(value: number) => [`$${value.toFixed(2)}`, '종가']}
+                formatter={(value: number) => [`$${value.toFixed(2)}`, t('close')]}
               />
               <Area
                 type="monotone"
@@ -121,7 +123,7 @@ export function StockChart() {
           </ResponsiveContainer>
         ) : (
           <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-            데이터를 불러올 수 없습니다
+            {t('noData')}
           </div>
         )}
       </CardContent>

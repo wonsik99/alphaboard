@@ -2,19 +2,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMarketNews } from '@/hooks/useStockData';
+import { useI18n } from '@/hooks/useI18n';
 import { cn } from '@/lib/utils';
 import { Newspaper, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { ko, enUS } from 'date-fns/locale';
 
 export function NewsFeed() {
   const { data: news, isLoading } = useMarketNews();
+  const { locale, t } = useI18n();
+  const dateLocale = locale === 'ko' ? ko : enUS;
 
   return (
     <Card className="bg-card border-border">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
           <Newspaper className="h-5 w-5 text-primary" />
-          시장 뉴스
+          {t('marketNews')}
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0 space-y-3">
@@ -46,7 +50,7 @@ export function NewsFeed() {
                 <span className="text-xs text-muted-foreground">{article.source}</span>
                 <span className="text-xs text-muted-foreground">·</span>
                 <span className="text-xs text-muted-foreground">
-                  {formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true, locale: dateLocale })}
                 </span>
                 <Badge
                   variant="secondary"
@@ -57,16 +61,16 @@ export function NewsFeed() {
                     article.sentiment === 'neutral' && 'bg-muted text-muted-foreground',
                   )}
                 >
-                  {article.sentiment === 'bullish' ? '긍정' : article.sentiment === 'bearish' ? '부정' : '중립'}
+                  {article.sentiment === 'bullish' ? t('bullish') : article.sentiment === 'bearish' ? t('bearish') : t('neutral')}
                 </Badge>
-                {article.tickers.slice(0, 3).map(t => (
-                  <Badge key={t} variant="outline" className="text-[10px] px-1.5 py-0">{t}</Badge>
+                {article.tickers.slice(0, 3).map(ticker => (
+                  <Badge key={ticker} variant="outline" className="text-[10px] px-1.5 py-0">{ticker}</Badge>
                 ))}
               </div>
             </a>
           ))
         ) : (
-          <p className="text-sm text-muted-foreground py-4 text-center">뉴스를 불러올 수 없습니다</p>
+          <p className="text-sm text-muted-foreground py-4 text-center">{t('noNews')}</p>
         )}
       </CardContent>
     </Card>
