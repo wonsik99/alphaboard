@@ -15,7 +15,7 @@ export function StockSearch({ onSelect, className }: StockSearchProps) {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
+  const { t } = useI18n();
 
   // Debounce
   useEffect(() => {
