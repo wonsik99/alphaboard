@@ -106,6 +106,8 @@ const translations = {
     passwordMismatch: 'Passwords do not match',
     passwordUpdated: 'Password updated successfully',
     invalidResetLink: 'Invalid or expired reset link',
+    chartLine: 'Line',
+    chartCandle: 'Candle',
   },
 } as const;
 
