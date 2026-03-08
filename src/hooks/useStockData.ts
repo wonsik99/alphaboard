@@ -35,7 +35,10 @@ export function useStockTimeSeries(symbol: string, range: TimeRange) {
     queryKey: ['stock-timeseries', symbol, range],
     queryFn: () => invokeEdgeFunction(FUNCTION_NAME, { action: 'timeseries', symbol, range }),
     enabled: !!symbol,
-    staleTime: 60000,
+    staleTime: 300000, // 5 min - Alpha Vantage has strict rate limits
+    refetchInterval: 300000,
+    retry: 2,
+    retryDelay: 15000, // Wait 15s before retry to let rate limit reset
   });
 }
 
