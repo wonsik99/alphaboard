@@ -54,3 +54,12 @@ export function useBatchQuotes(symbols: string[]) {
     staleTime: 30000,
   });
 }
+
+export function useStockSearch(keywords: string) {
+  return useQuery<SearchResult[]>({
+    queryKey: ['stock-search', keywords],
+    queryFn: () => invokeEdgeFunction('stock-data', { action: 'search', keywords }),
+    enabled: keywords.length >= 1,
+    staleTime: 60000,
+  });
+}
