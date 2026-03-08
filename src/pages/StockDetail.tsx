@@ -10,9 +10,10 @@ import { useWatchlist } from '@/hooks/useWatchlist';
 import { useI18n } from '@/hooks/useI18n';
 import type { TimeRange } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, Star, TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Star, TrendingUp, TrendingDown, ExternalLink, LineChart, BarChart3 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ko, enUS } from 'date-fns/locale';
+import { CandlestickChart } from '@/components/CandlestickChart';
 import {
   ResponsiveContainer,
   AreaChart,

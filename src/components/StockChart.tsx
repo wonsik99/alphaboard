@@ -7,7 +7,8 @@ import { useI18n } from '@/hooks/useI18n';
 import type { TimeRange } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, BarChart3, LineChart } from 'lucide-react';
+import { CandlestickChart } from '@/components/CandlestickChart';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -19,10 +20,12 @@ import {
 } from 'recharts';
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '1Y'];
+type ChartType = 'line' | 'candle';
 
 export function StockChart() {
   const [symbol, setSymbol] = useState('AAPL');
   const [range, setRange] = useState<TimeRange>('1M');
+  const [chartType, setChartType] = useState<ChartType>('line');
   const { t } = useI18n();
 
   const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol, range);
@@ -62,73 +65,99 @@ export function StockChart() {
             className="w-56"
           />
         </div>
-        <div className="flex gap-1 mt-3">
-          {TIME_RANGES.map(r => (
+        <div className="flex items-center gap-3 mt-3">
+          <div className="flex gap-1">
+            {TIME_RANGES.map(r => (
+              <Button
+                key={r}
+                size="sm"
+                variant={range === r ? 'default' : 'ghost'}
+                className={cn(
+                  'text-xs px-3.5 h-7 rounded-full transition-all',
+                  range === r && 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                )}
+                onClick={() => setRange(r)}
+              >
+                {r}
+              </Button>
+            ))}
+          </div>
+          <div className="flex gap-0.5 bg-muted rounded-full p-0.5">
             <Button
-              key={r}
               size="sm"
-              variant={range === r ? 'default' : 'ghost'}
-              className={cn(
-                'text-xs px-3.5 h-7 rounded-full transition-all',
-                range === r && 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
-              )}
-              onClick={() => setRange(r)}
+              variant="ghost"
+              className={cn('h-6 w-7 p-0 rounded-full', chartType === 'line' && 'bg-background shadow-sm')}
+              onClick={() => setChartType('line')}
+              title={t('chartLine')}
             >
-              {r}
+              <LineChart className="h-3.5 w-3.5" />
             </Button>
-          ))}
+            <Button
+              size="sm"
+              variant="ghost"
+              className={cn('h-6 w-7 p-0 rounded-full', chartType === 'candle' && 'bg-background shadow-sm')}
+              onClick={() => setChartType('candle')}
+              title={t('chartCandle')}
+            >
+              <BarChart3 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
         {tsLoading ? (
           <Skeleton className="h-[300px] w-full rounded-xl" />
         ) : timeseries && timeseries.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={timeseries}>
-              <defs>
-                <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={fillColor} stopOpacity={0.25} />
-                  <stop offset="95%" stopColor={fillColor} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis
-                dataKey="date"
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <YAxis
-                domain={['auto', 'auto']}
-                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-                tickLine={false}
-                axisLine={false}
-                tickFormatter={v => `$${v}`}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: 'hsl(var(--glass-bg))',
-                  backdropFilter: 'blur(24px)',
-                  WebkitBackdropFilter: 'blur(24px)',
-                  border: '1px solid hsl(var(--glass-border))',
-                  borderRadius: '16px',
-                  fontSize: '12px',
-                  fontFamily: 'JetBrains Mono',
-                  boxShadow: 'var(--glass-shadow)',
-                }}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
-                itemStyle={{ color: strokeColor }}
-                formatter={(value: number) => [`$${value.toFixed(2)}`, t('close')]}
-              />
-              <Area
-                type="monotone"
-                dataKey="close"
-                stroke={strokeColor}
-                strokeWidth={2}
-                fill="url(#chartGradient)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          chartType === 'candle' ? (
+            <CandlestickChart data={timeseries} height={300} />
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={timeseries}>
+                <defs>
+                  <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={fillColor} stopOpacity={0.25} />
+                    <stop offset="95%" stopColor={fillColor} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  domain={['auto', 'auto']}
+                  tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={v => `$${v}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: 'hsl(var(--glass-bg))',
+                    backdropFilter: 'blur(24px)',
+                    WebkitBackdropFilter: 'blur(24px)',
+                    border: '1px solid hsl(var(--glass-border))',
+                    borderRadius: '16px',
+                    fontSize: '12px',
+                    fontFamily: 'JetBrains Mono',
+                    boxShadow: 'var(--glass-shadow)',
+                  }}
+                  labelStyle={{ color: 'hsl(var(--foreground))' }}
+                  itemStyle={{ color: strokeColor }}
+                  formatter={(value: number) => [`$${value.toFixed(2)}`, t('close')]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="close"
+                  stroke={strokeColor}
+                  strokeWidth={2}
+                  fill="url(#chartGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          )
         ) : (
           <div className="h-[300px] flex items-center justify-center text-muted-foreground">
             {t('noData')}
