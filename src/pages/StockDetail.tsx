@@ -33,6 +33,8 @@ const StockDetail = () => {
   const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol || '', range);
   const { data: news } = useMarketNews();
   const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
+  const { locale, t } = useI18n();
+  const dateLocale = locale === 'ko' ? ko : enUS;
 
   const inWatchlist = symbol ? isInWatchlist(symbol) : false;
   const isPositive = quote ? quote.change >= 0 : true;
