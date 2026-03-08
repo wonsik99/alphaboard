@@ -156,7 +156,7 @@ const StockDetail = () => {
         {/* Related news */}
         {relatedNews && relatedNews.length > 0 && (
           <Card className="bg-card border-border">
-            <CardHeader><CardTitle className="text-lg">관련 뉴스</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-lg">{t('relatedNews')}</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {relatedNews.map((article, i) => (
                 <a key={i} href={article.url} target="_blank" rel="noopener noreferrer" className="block pb-3 border-b border-border last:border-0 hover:bg-secondary/30 -mx-2 px-2 py-2 rounded-md transition-colors group">
