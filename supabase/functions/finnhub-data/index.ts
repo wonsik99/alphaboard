@@ -91,40 +91,82 @@ Deno.serve(async (req) => {
       }
 
       case 'timeseries': {
+        // Finnhub free plan doesn't support US stock candles — use Alpha Vantage
         const sym = body.symbol!;
         const range = body.range || '1M';
-        const { resolution, fromDays } = resolutionForRange(range);
-        const to = Math.floor(Date.now() / 1000);
-        const from = to - fromDays * 86400;
-        const data = await fetchFH('/stock/candle', {
-          symbol: sym,
-          resolution,
-          from: String(from),
-          to: String(to),
-        });
 
-        if (data.s === 'no_data' || !data.t) {
+        function avFunctionForRange(r: string) {
+          switch (r) {
+            case '1D': return { fn: 'TIME_SERIES_INTRADAY', interval: '5min' };
+            case '1W': return { fn: 'TIME_SERIES_INTRADAY', interval: '60min' };
+            case '1M': return { fn: 'TIME_SERIES_DAILY', interval: '' };
+            case '3M': return { fn: 'TIME_SERIES_DAILY', interval: '' };
+            case '1Y': return { fn: 'TIME_SERIES_WEEKLY', interval: '' };
+            default: return { fn: 'TIME_SERIES_DAILY', interval: '' };
+          }
+        }
+        function avLimitForRange(r: string) {
+          switch (r) {
+            case '1D': return 78; case '1W': return 40; case '1M': return 22;
+            case '3M': return 66; case '1Y': return 52; default: return 30;
+          }
+        }
+
+        const { fn, interval } = avFunctionForRange(range);
+        const avParams: Record<string, string> = { function: fn, symbol: sym, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY };
+        if (interval) avParams.interval = interval;
+
+        const avUrl = new URL(AV_BASE_URL);
+        for (const [k, v] of Object.entries(avParams)) avUrl.searchParams.set(k, v);
+        const avRes = await fetch(avUrl.toString());
+        const avData = await avRes.json();
+
+        const tsKey = Object.keys(avData).find(k => k.includes('Time Series'));
+        if (!tsKey) {
           result = [];
           break;
         }
+        const ts = avData[tsKey] as Record<string, Record<string, string>>;
+        const limit = avLimitForRange(range);
+        let parsed = Object.entries(ts)
+          .slice(0, limit)
+          .map(([date, values]) => ({
+            date: range === '1D' || range === '1W' ? date.split(' ')[1]?.slice(0, 5) || date : date.slice(5),
+            open: parseFloat(values['1. open']),
+            high: parseFloat(values['2. high']),
+            low: parseFloat(values['3. low']),
+            close: parseFloat(values['4. close']),
+            volume: parseInt(values['5. volume']),
+          }))
+          .reverse();
 
-        result = data.t.map((ts: number, i: number) => {
-          const d = new Date(ts * 1000);
-          let dateStr: string;
-          if (range === '1D' || range === '1W') {
-            dateStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-          } else {
-            dateStr = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        // Fallback if intraday returns empty (weekend/holiday)
+        if (parsed.length === 0 && (range === '1D' || range === '1W')) {
+          const fbParams: Record<string, string> = { function: 'TIME_SERIES_DAILY', symbol: sym, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY };
+          const fbUrl = new URL(AV_BASE_URL);
+          for (const [k, v] of Object.entries(fbParams)) fbUrl.searchParams.set(k, v);
+          const fbRes = await fetch(fbUrl.toString());
+          const fbData = await fbRes.json();
+          const fbKey = Object.keys(fbData).find(k => k.includes('Time Series'));
+          if (fbKey) {
+            const fbTs = fbData[fbKey] as Record<string, Record<string, string>>;
+            const fbLimit = range === '1D' ? 1 : 5;
+            parsed = Object.entries(fbTs)
+              .slice(0, 22)
+              .map(([date, values]) => ({
+                date: date.slice(5),
+                open: parseFloat(values['1. open']),
+                high: parseFloat(values['2. high']),
+                low: parseFloat(values['3. low']),
+                close: parseFloat(values['4. close']),
+                volume: parseInt(values['5. volume']),
+              }))
+              .reverse()
+              .slice(-fbLimit);
           }
-          return {
-            date: dateStr,
-            open: data.o[i],
-            high: data.h[i],
-            low: data.l[i],
-            close: data.c[i],
-            volume: data.v[i],
-          };
-        });
+        }
+
+        result = parsed;
         break;
       }
 
