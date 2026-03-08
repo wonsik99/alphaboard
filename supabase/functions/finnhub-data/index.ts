@@ -93,25 +93,19 @@ Deno.serve(async (req) => {
       case 'timeseries': {
         const sym = body.symbol!;
         const range = body.range || '1M';
-        const isIntraday = range === '1D' || range === '1W';
 
         async function fetchAV(params: Record<string, string>) {
           const url = new URL(AV_BASE_URL);
           for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-          console.log('AV request:', url.toString().replace(ALPHA_VANTAGE_KEY, '***'));
           const res = await fetch(url.toString());
-          const data = await res.json();
-          const note = (data as Record<string, unknown>)?.['Note'] || (data as Record<string, unknown>)?.['Information'] || '';
-          if (note) console.log('AV rate limit:', note);
-          console.log('AV response keys:', Object.keys(data));
-          return data;
+          return res.json();
         }
 
-        function parseTS(ts: Record<string, Record<string, string>>, limit: number, useTime: boolean) {
+        function parseTS(ts: Record<string, Record<string, string>>, limit: number) {
           return Object.entries(ts)
             .slice(0, limit)
             .map(([date, values]) => ({
-              date: useTime ? (date.split(' ')[1]?.slice(0, 5) || date) : date.slice(5),
+              date: date.slice(5),
               open: parseFloat(values['1. open']),
               high: parseFloat(values['2. high']),
               low: parseFloat(values['3. low']),
@@ -121,36 +115,23 @@ Deno.serve(async (req) => {
             .reverse();
         }
 
+        // Use daily/weekly data for all ranges (avoids intraday rate limit issues)
+        const fn = range === '1Y' ? 'TIME_SERIES_WEEKLY' : 'TIME_SERIES_DAILY';
+        const avData = await fetchAV({ function: fn, symbol: sym, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY });
+        const tsKey = Object.keys(avData).find(k => k.includes('Time Series'));
+
         let parsed: Array<{date: string; open: number; high: number; low: number; close: number; volume: number}> = [];
-
-        // Try intraday first for 1D/1W
-        if (isIntraday) {
-          const intradayFn = range === '1D' ? '5min' : '60min';
-          const avData = await fetchAV({ function: 'TIME_SERIES_INTRADAY', symbol: sym, interval: intradayFn, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY });
-          const tsKey = Object.keys(avData).find(k => k.includes('Time Series'));
-          if (tsKey) {
-            const limit = range === '1D' ? 78 : 40;
-            parsed = parseTS(avData[tsKey], limit, true);
+        if (tsKey) {
+          let limit: number;
+          switch (range) {
+            case '1D': limit = 1; break;
+            case '1W': limit = 5; break;
+            case '1M': limit = 22; break;
+            case '3M': limit = 66; break;
+            case '1Y': limit = 52; break;
+            default: limit = 30;
           }
-        }
-
-        // For non-intraday or as fallback when intraday is empty (weekends/holidays)
-        if (!isIntraday || parsed.length === 0) {
-          const fn = range === '1Y' ? 'TIME_SERIES_WEEKLY' : 'TIME_SERIES_DAILY';
-          const avData = await fetchAV({ function: fn, symbol: sym, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY });
-          const tsKey = Object.keys(avData).find(k => k.includes('Time Series'));
-          if (tsKey) {
-            let limit: number;
-            switch (range) {
-              case '1D': limit = 5; break;   // Show last 5 trading days as fallback
-              case '1W': limit = 5; break;
-              case '1M': limit = 22; break;
-              case '3M': limit = 66; break;
-              case '1Y': limit = 52; break;
-              default: limit = 30;
-            }
-            parsed = parseTS(avData[tsKey], limit, false);
-          }
+          parsed = parseTS(avData[tsKey], limit);
         }
 
         result = parsed;
