@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { useStockSearch } from '@/hooks/useStockData';
+import { useI18n } from '@/hooks/useI18n';
 import { Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
 
 interface StockSearchProps {
   onSelect: (symbol: string, name: string) => void;
