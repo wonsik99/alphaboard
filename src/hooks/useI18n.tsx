@@ -53,6 +53,8 @@ const translations = {
     passwordMismatch: '비밀번호가 일치하지 않습니다',
     passwordUpdated: '비밀번호가 변경되었습니다',
     invalidResetLink: '유효하지 않은 링크입니다',
+    chartLine: '라인',
+    chartCandle: '캔들',
   },
   en: {
     subtitle: 'US Market Dashboard · Real-time Data',
@@ -104,6 +106,8 @@ const translations = {
     passwordMismatch: 'Passwords do not match',
     passwordUpdated: 'Password updated successfully',
     invalidResetLink: 'Invalid or expired reset link',
+    chartLine: 'Line',
+    chartCandle: 'Candle',
   },
 } as const;
 
