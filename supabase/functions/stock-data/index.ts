@@ -157,6 +157,22 @@ Deno.serve(async (req) => {
         });
         break;
       }
+      case 'search': {
+        const keywords = (body.keywords || '').trim();
+        if (!keywords) {
+          result = [];
+          break;
+        }
+        const data = await fetchAV({ function: 'SYMBOL_SEARCH', keywords });
+        const matches = (data as { bestMatches?: Array<Record<string, string>> }).bestMatches || [];
+        result = matches.slice(0, 8).map(m => ({
+          symbol: m['1. symbol'],
+          name: m['2. name'],
+          type: m['3. type'],
+          region: m['4. region'],
+        }));
+        break;
+      }
       default:
         return new Response(JSON.stringify({ error: 'Unknown action' }), {
           status: 400,
