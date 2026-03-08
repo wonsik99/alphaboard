@@ -187,10 +187,12 @@ Deno.serve(async (req) => {
 
     const systemMessage = { role: 'system', content: SYSTEM_PROMPT + watchlistContext };
 
-    // Initial AI call with tools
+    // Initial AI call with tools - handle tool calls first (non-streaming)
     let aiMessages = [systemMessage, ...messages];
-    let maxIterations = 5; // Prevent infinite loops
+    let maxIterations = 5;
+    const allWatchlistActions: unknown[] = [];
 
+    // Process tool calls in a loop until we get a final response
     while (maxIterations > 0) {
       maxIterations--;
       
@@ -241,6 +243,13 @@ Deno.serve(async (req) => {
             const args = JSON.parse(tc.function.arguments);
             console.log(`Tool call: ${tc.function.name}`, args);
             const result = await executeTool(tc.function.name, args);
+            
+            // Collect watchlist actions
+            try {
+              const parsed = JSON.parse(result);
+              if (parsed.__watchlist_action) allWatchlistActions.push(parsed);
+            } catch { /* ignore */ }
+            
             return {
               role: 'tool',
               tool_call_id: tc.id,
@@ -249,38 +258,55 @@ Deno.serve(async (req) => {
           })
         );
         aiMessages.push(...toolResults);
-        
-        // Check for watchlist actions in tool results
-        const watchlistActions = toolResults
-          .map(r => { try { return JSON.parse(r.content); } catch { return null; } })
-          .filter(r => r?.__watchlist_action);
-
-        // Continue loop to get AI's response after tool execution
         continue;
       }
 
-      // No tool calls - we have the final response
-      // Check if any watchlist actions were triggered
-      const allWatchlistActions: unknown[] = [];
-      for (const msg of aiMessages) {
-        if (msg.role === 'tool') {
-          try {
-            const parsed = JSON.parse(msg.content);
-            if (parsed.__watchlist_action) allWatchlistActions.push(parsed);
-          } catch { /* ignore */ }
-        }
-      }
-
-      return new Response(JSON.stringify({
-        content: assistantMessage.content || '',
-        watchlistActions: allWatchlistActions,
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // No tool calls - now stream the final response
+      break;
     }
 
-    return new Response(JSON.stringify({ content: '처리 중 오류가 발생했습니다. 다시 시도해주세요.', watchlistActions: [] }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Final streaming response
+    const streamResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-3-flash-preview',
+        messages: aiMessages,
+        stream: true,
+      }),
+    });
+
+    if (!streamResponse.ok) {
+      throw new Error(`Stream error: ${streamResponse.status}`);
+    }
+
+    // Create a transform stream to inject watchlist actions at the end
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    
+    const transformStream = new TransformStream({
+      start(controller) {
+        // Send watchlist actions as first event if any
+        if (allWatchlistActions.length > 0) {
+          const actionEvent = `data: ${JSON.stringify({ watchlistActions: allWatchlistActions })}\n\n`;
+          controller.enqueue(encoder.encode(actionEvent));
+        }
+      },
+      transform(chunk, controller) {
+        controller.enqueue(chunk);
+      },
+    });
+
+    return new Response(streamResponse.body?.pipeThrough(transformStream), {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

@@ -56,9 +56,18 @@ export function StockChatbot() {
       timestamp: new Date(),
     };
 
+    const assistantMsgId = crypto.randomUUID();
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
+
+    // Add empty assistant message for streaming
+    setMessages(prev => [...prev, {
+      id: assistantMsgId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    }]);
 
     try {
       const chatMessages = [...messages, userMsg].map(m => ({
@@ -66,62 +75,93 @@ export function StockChatbot() {
         content: m.content,
       }));
 
-      const { data, error } = await supabase.functions.invoke('stock-chat', {
-        body: {
-          messages: chatMessages,
-          watchlist: watchlist.map(w => ({ symbol: w.symbol, name: w.name })),
-        },
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/stock-chat`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            messages: chatMessages,
+            watchlist: watchlist.map(w => ({ symbol: w.symbol, name: w.name })),
+          }),
+        }
+      );
 
-      if (error) throw new Error(error.message);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.error === 'rate_limit') {
+          throw new Error('⚠️ 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.');
+        }
+        if (errorData.error === 'payment_required') {
+          throw new Error('⚠️ AI 크레딧이 부족합니다.');
+        }
+        throw new Error(errorData.message || 'Request failed');
+      }
 
-      // Handle watchlist actions
-      if (data?.watchlistActions?.length > 0) {
-        for (const action of data.watchlistActions) {
-          if (action.action === 'add') {
-            addToWatchlist({ symbol: action.symbol, name: action.name });
-          } else if (action.action === 'remove') {
-            removeFromWatchlist(action.symbol);
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No reader');
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            
+            // Handle watchlist actions
+            if (parsed.watchlistActions) {
+              for (const action of parsed.watchlistActions) {
+                if (action.action === 'add') {
+                  addToWatchlist({ symbol: action.symbol, name: action.name });
+                } else if (action.action === 'remove') {
+                  removeFromWatchlist(action.symbol);
+                }
+              }
+              continue;
+            }
+
+            // Handle streaming content
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              setMessages(prev => prev.map(msg =>
+                msg.id === assistantMsgId
+                  ? { ...msg, content: msg.content + content }
+                  : msg
+              ));
+            }
+          } catch {
+            // Ignore parse errors
           }
         }
       }
-
-      // Handle error responses
-      if (data?.error) {
-        const errorMsg = data.error === 'rate_limit'
-          ? '⚠️ 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.'
-          : data.error === 'payment_required'
-          ? '⚠️ AI 크레딧이 부족합니다.'
-          : `⚠️ 오류: ${data.message || '알 수 없는 오류'}`;
-
-        setMessages(prev => [...prev, {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: errorMsg,
-          timestamp: new Date(),
-        }]);
-        return;
-      }
-
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: data?.content || '응답을 받지 못했습니다.',
-        timestamp: new Date(),
-      }]);
     } catch (err) {
       console.error('Chat error:', err);
+      const errorMsg = err instanceof Error ? err.message : '메시지 처리 중 오류가 발생했습니다.';
+      setMessages(prev => prev.map(msg =>
+        msg.id === assistantMsgId
+          ? { ...msg, content: `⚠️ ${errorMsg}` }
+          : msg
+      ));
       toast({
         title: '오류',
         description: '메시지 전송에 실패했습니다.',
         variant: 'destructive',
       });
-      setMessages(prev => [...prev, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: '⚠️ 메시지 처리 중 오류가 발생했습니다. 다시 시도해주세요.',
-        timestamp: new Date(),
-      }]);
     } finally {
       setIsLoading(false);
     }
