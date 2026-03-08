@@ -128,7 +128,7 @@ const StockDetail = () => {
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[350px] flex items-center justify-center text-muted-foreground">데이터를 불러올 수 없습니다</div>
+              <div className="h-[350px] flex items-center justify-center text-muted-foreground">{t('noChartData')}</div>
             )}
           </CardContent>
         </Card>
