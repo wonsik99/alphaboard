@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useStockQuote, useStockTimeSeries, useMarketNews } from '@/hooks/useStockData';
+import { useStockQuote, useStockTimeSeries, useCompanyNews } from '@/hooks/useStockData';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useI18n } from '@/hooks/useI18n';
 import type { TimeRange } from '@/lib/types';
