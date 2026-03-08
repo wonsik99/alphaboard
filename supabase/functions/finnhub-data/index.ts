@@ -91,78 +91,60 @@ Deno.serve(async (req) => {
       }
 
       case 'timeseries': {
-        // Finnhub free plan doesn't support US stock candles — use Alpha Vantage
         const sym = body.symbol!;
         const range = body.range || '1M';
+        const isIntraday = range === '1D' || range === '1W';
 
-        function avFunctionForRange(r: string) {
-          switch (r) {
-            case '1D': return { fn: 'TIME_SERIES_INTRADAY', interval: '5min' };
-            case '1W': return { fn: 'TIME_SERIES_INTRADAY', interval: '60min' };
-            case '1M': return { fn: 'TIME_SERIES_DAILY', interval: '' };
-            case '3M': return { fn: 'TIME_SERIES_DAILY', interval: '' };
-            case '1Y': return { fn: 'TIME_SERIES_WEEKLY', interval: '' };
-            default: return { fn: 'TIME_SERIES_DAILY', interval: '' };
+        async function fetchAV(params: Record<string, string>) {
+          const url = new URL(AV_BASE_URL);
+          for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+          const res = await fetch(url.toString());
+          return res.json();
+        }
+
+        function parseTS(ts: Record<string, Record<string, string>>, limit: number, useTime: boolean) {
+          return Object.entries(ts)
+            .slice(0, limit)
+            .map(([date, values]) => ({
+              date: useTime ? (date.split(' ')[1]?.slice(0, 5) || date) : date.slice(5),
+              open: parseFloat(values['1. open']),
+              high: parseFloat(values['2. high']),
+              low: parseFloat(values['3. low']),
+              close: parseFloat(values['4. close']),
+              volume: parseInt(values['5. volume']),
+            }))
+            .reverse();
+        }
+
+        let parsed: Array<{date: string; open: number; high: number; low: number; close: number; volume: number}> = [];
+
+        // Try intraday first for 1D/1W
+        if (isIntraday) {
+          const intradayFn = range === '1D' ? '5min' : '60min';
+          const avData = await fetchAV({ function: 'TIME_SERIES_INTRADAY', symbol: sym, interval: intradayFn, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY });
+          const tsKey = Object.keys(avData).find(k => k.includes('Time Series'));
+          if (tsKey) {
+            const limit = range === '1D' ? 78 : 40;
+            parsed = parseTS(avData[tsKey], limit, true);
           }
         }
-        function avLimitForRange(r: string) {
-          switch (r) {
-            case '1D': return 78; case '1W': return 40; case '1M': return 22;
-            case '3M': return 66; case '1Y': return 52; default: return 30;
-          }
-        }
 
-        const { fn, interval } = avFunctionForRange(range);
-        const avParams: Record<string, string> = { function: fn, symbol: sym, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY };
-        if (interval) avParams.interval = interval;
-
-        const avUrl = new URL(AV_BASE_URL);
-        for (const [k, v] of Object.entries(avParams)) avUrl.searchParams.set(k, v);
-        const avRes = await fetch(avUrl.toString());
-        const avData = await avRes.json();
-
-        const tsKey = Object.keys(avData).find(k => k.includes('Time Series'));
-        if (!tsKey) {
-          result = [];
-          break;
-        }
-        const ts = avData[tsKey] as Record<string, Record<string, string>>;
-        const limit = avLimitForRange(range);
-        let parsed = Object.entries(ts)
-          .slice(0, limit)
-          .map(([date, values]) => ({
-            date: range === '1D' || range === '1W' ? date.split(' ')[1]?.slice(0, 5) || date : date.slice(5),
-            open: parseFloat(values['1. open']),
-            high: parseFloat(values['2. high']),
-            low: parseFloat(values['3. low']),
-            close: parseFloat(values['4. close']),
-            volume: parseInt(values['5. volume']),
-          }))
-          .reverse();
-
-        // Fallback if intraday returns empty (weekend/holiday)
-        if (parsed.length === 0 && (range === '1D' || range === '1W')) {
-          const fbParams: Record<string, string> = { function: 'TIME_SERIES_DAILY', symbol: sym, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY };
-          const fbUrl = new URL(AV_BASE_URL);
-          for (const [k, v] of Object.entries(fbParams)) fbUrl.searchParams.set(k, v);
-          const fbRes = await fetch(fbUrl.toString());
-          const fbData = await fbRes.json();
-          const fbKey = Object.keys(fbData).find(k => k.includes('Time Series'));
-          if (fbKey) {
-            const fbTs = fbData[fbKey] as Record<string, Record<string, string>>;
-            const fbLimit = range === '1D' ? 1 : 5;
-            parsed = Object.entries(fbTs)
-              .slice(0, 22)
-              .map(([date, values]) => ({
-                date: date.slice(5),
-                open: parseFloat(values['1. open']),
-                high: parseFloat(values['2. high']),
-                low: parseFloat(values['3. low']),
-                close: parseFloat(values['4. close']),
-                volume: parseInt(values['5. volume']),
-              }))
-              .reverse()
-              .slice(-fbLimit);
+        // For non-intraday or as fallback when intraday is empty (weekends/holidays)
+        if (!isIntraday || parsed.length === 0) {
+          const fn = range === '1Y' ? 'TIME_SERIES_WEEKLY' : 'TIME_SERIES_DAILY';
+          const avData = await fetchAV({ function: fn, symbol: sym, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY });
+          const tsKey = Object.keys(avData).find(k => k.includes('Time Series'));
+          if (tsKey) {
+            let limit: number;
+            switch (range) {
+              case '1D': limit = 5; break;   // Show last 5 trading days as fallback
+              case '1W': limit = 5; break;
+              case '1M': limit = 22; break;
+              case '3M': limit = 66; break;
+              case '1Y': limit = 52; break;
+              default: limit = 30;
+            }
+            parsed = parseTS(avData[tsKey], limit, false);
           }
         }
 
