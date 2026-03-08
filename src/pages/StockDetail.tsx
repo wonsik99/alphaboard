@@ -66,7 +66,7 @@ const StockDetail = () => {
                 }}
               >
                 <Star className={cn('h-4 w-4 mr-1', inWatchlist && 'fill-current')} />
-                {inWatchlist ? '관심 종목' : '추가'}
+                {inWatchlist ? t('inWatchlist') : t('add')}
               </Button>
             </div>
           )}
