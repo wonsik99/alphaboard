@@ -2,3 +2,6 @@ project_id = "qlqyoykeadqrrtqvkkqq"
 
 [functions.stock-data]
 verify_jwt = false
+
+[functions.finnhub-data]
+verify_jwt = false
