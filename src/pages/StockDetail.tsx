@@ -122,7 +122,7 @@ const StockDetail = () => {
                   <Tooltip
                     contentStyle={{ backgroundColor: 'hsl(222, 47%, 9%)', border: '1px solid hsl(222, 30%, 16%)', borderRadius: '8px', fontSize: '12px', fontFamily: 'JetBrains Mono' }}
                     labelStyle={{ color: 'hsl(210, 40%, 96%)' }}
-                    formatter={(value: number) => [`$${value.toFixed(2)}`, '종가']}
+                    formatter={(value: number) => [`$${value.toFixed(2)}`, t('close')]}
                   />
                   <Area type="monotone" dataKey="close" stroke={strokeColor} strokeWidth={2} fill="url(#detailGradient)" />
                 </AreaChart>
