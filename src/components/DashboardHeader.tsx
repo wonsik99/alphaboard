@@ -1,12 +1,14 @@
-import { BarChart3, Globe, LogIn, LogOut, User } from 'lucide-react';
+import { BarChart3, Globe, LogIn, LogOut, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/hooks/useI18n';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
 import { useNavigate } from 'react-router-dom';
 
 export function DashboardHeader() {
   const { locale, setLocale, t } = useI18n();
   const { user, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   return (
@@ -22,6 +24,15 @@ export function DashboardHeader() {
           <p className="text-xs text-muted-foreground hidden sm:block font-medium mr-1">
             {t('subtitle')}
           </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 rounded-full glass-subtle hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-all"
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          >
+            {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </Button>
           <Button
             variant="ghost"
             size="sm"
