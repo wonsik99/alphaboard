@@ -100,7 +100,16 @@ export default function Auth() {
               {isLogin ? t('login') : t('signup')}
             </Button>
           </form>
-          <div className="mt-4 text-center">
+          <div className="mt-4 text-center space-y-2">
+            {isLogin && (
+              <button
+                type="button"
+                className="text-sm text-primary hover:text-primary/80 transition-colors block mx-auto"
+                onClick={() => navigate('/forgot-password')}
+              >
+                {t('forgotPassword')}
+              </button>
+            )}
             <button
               type="button"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
