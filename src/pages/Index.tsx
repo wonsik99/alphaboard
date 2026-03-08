@@ -3,6 +3,7 @@ import { MarketIndexCard } from '@/components/MarketIndexCard';
 import { StockChart } from '@/components/StockChart';
 import { Watchlist } from '@/components/Watchlist';
 import { NewsFeed } from '@/components/NewsFeed';
+import { StockChatbot } from '@/components/StockChatbot';
 import { useMarketIndices } from '@/hooks/useStockData';
 import { useI18n } from '@/hooks/useI18n';
 
@@ -41,6 +42,7 @@ const Index = () => {
           </div>
         </div>
       </main>
+      <StockChatbot />
     </div>
   );
 };
