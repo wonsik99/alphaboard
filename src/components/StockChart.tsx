@@ -53,18 +53,10 @@ export function StockChart() {
               </div>
             )}
           </div>
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="종목 검색 (예: TSLA)"
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-                className="pl-9 w-44 bg-secondary border-border"
-              />
-            </div>
-            <Button type="submit" size="sm" variant="secondary">검색</Button>
-          </form>
+          <StockSearch
+            onSelect={(sym) => setSymbol(sym)}
+            className="w-56"
+          />
         </div>
         <div className="flex gap-1 mt-3">
           {TIME_RANGES.map(r => (
