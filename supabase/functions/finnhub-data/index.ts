@@ -6,7 +6,9 @@ const corsHeaders = {
 };
 
 const FINNHUB_KEY = Deno.env.get('FINNHUB_API_KEY') || '';
+const ALPHA_VANTAGE_KEY = Deno.env.get('ALPHA_VANTAGE_API_KEY') || 'demo';
 const BASE_URL = 'https://finnhub.io/api/v1';
+const AV_BASE_URL = 'https://www.alphavantage.co/query';
 
 interface RequestBody {
   action: string;
