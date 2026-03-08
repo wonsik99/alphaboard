@@ -7,10 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useStockQuote, useStockTimeSeries, useMarketNews } from '@/hooks/useStockData';
 import { useWatchlist } from '@/hooks/useWatchlist';
+import { useI18n } from '@/hooks/useI18n';
 import type { TimeRange } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, Star, TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { ko, enUS } from 'date-fns/locale';
 import {
   ResponsiveContainer,
   AreaChart,
