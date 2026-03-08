@@ -1,128 +1,144 @@
-import { ResponsiveContainer, ComposedChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from 'recharts';
+import { useMemo } from 'react';
 import type { StockTimeSeriesPoint } from '@/lib/types';
-import { useI18n } from '@/hooks/useI18n';
 
 interface CandlestickChartProps {
   data: StockTimeSeriesPoint[];
   height?: number;
 }
 
-// Custom candlestick shape
-const CandlestickShape = (props: any) => {
-  const { x, y, width, height, payload } = props;
-  if (!payload) return null;
-
-  const { open, close, high, low } = payload;
-  const isUp = close >= open;
-  const color = isUp ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
-
-  // Chart area dimensions
-  const yScale = props.yAxis;
-  if (!yScale) return null;
-
-  const yHigh = yScale.scale(high);
-  const yLow = yScale.scale(low);
-  const yOpen = yScale.scale(open);
-  const yClose = yScale.scale(close);
-
-  const bodyTop = Math.min(yOpen, yClose);
-  const bodyHeight = Math.max(Math.abs(yOpen - yClose), 1);
-  const wickX = x + width / 2;
-
-  return (
-    <g>
-      {/* Upper wick */}
-      <line x1={wickX} y1={yHigh} x2={wickX} y2={bodyTop} stroke={color} strokeWidth={1} />
-      {/* Lower wick */}
-      <line x1={wickX} y1={bodyTop + bodyHeight} x2={wickX} y2={yLow} stroke={color} strokeWidth={1} />
-      {/* Body */}
-      <rect
-        x={x + 1}
-        y={bodyTop}
-        width={Math.max(width - 2, 2)}
-        height={bodyHeight}
-        fill={isUp ? color : color}
-        stroke={color}
-        strokeWidth={1}
-        fillOpacity={isUp ? 0.3 : 0.8}
-        rx={1}
-      />
-    </g>
-  );
-};
-
 export function CandlestickChart({ data, height = 300 }: CandlestickChartProps) {
-  const { t } = useI18n();
+  const marginLeft = 55;
+  const marginRight = 10;
+  const marginTop = 10;
+  const marginBottom = 30;
 
-  // We need a dummy dataKey for Bar — we use 'high' but render custom shape
-  const allValues = data.flatMap(d => [d.high, d.low]);
-  const minVal = Math.min(...allValues);
-  const maxVal = Math.max(...allValues);
-  const padding = (maxVal - minVal) * 0.05;
+  const chart = useMemo(() => {
+    if (!data.length) return null;
+
+    const allHighs = data.map(d => d.high);
+    const allLows = data.map(d => d.low);
+    const minPrice = Math.min(...allLows);
+    const maxPrice = Math.max(...allHighs);
+    const pricePad = (maxPrice - minPrice) * 0.08 || 1;
+    const yMin = minPrice - pricePad;
+    const yMax = maxPrice + pricePad;
+
+    const chartW = 100; // percent-based, we'll use viewBox
+    const chartH = height - marginTop - marginBottom;
+
+    const barWidth = Math.max(2, Math.min(12, (600 - marginLeft - marginRight) / data.length * 0.6));
+    const step = (600 - marginLeft - marginRight) / data.length;
+
+    const yScale = (v: number) => marginTop + chartH - ((v - yMin) / (yMax - yMin)) * chartH;
+
+    // Y-axis ticks
+    const tickCount = 5;
+    const tickStep = (yMax - yMin) / (tickCount - 1);
+    const yTicks = Array.from({ length: tickCount }, (_, i) => yMin + tickStep * i);
+
+    // X-axis labels (show ~6 labels)
+    const labelStep = Math.max(1, Math.floor(data.length / 6));
+
+    const candles = data.map((d, i) => {
+      const x = marginLeft + step * i + step / 2;
+      const isUp = d.close >= d.open;
+      const color = isUp ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
+      const bodyTop = yScale(Math.max(d.open, d.close));
+      const bodyBottom = yScale(Math.min(d.open, d.close));
+      const bodyH = Math.max(bodyBottom - bodyTop, 1);
+
+      return (
+        <g key={i}>
+          <line
+            x1={x} y1={yScale(d.high)} x2={x} y2={yScale(d.low)}
+            stroke={color} strokeWidth={1}
+          />
+          <rect
+            x={x - barWidth / 2}
+            y={bodyTop}
+            width={barWidth}
+            height={bodyH}
+            fill={isUp ? 'transparent' : color}
+            stroke={color}
+            strokeWidth={1}
+            rx={0.5}
+          />
+          {/* Invisible wider rect for tooltip hover */}
+          <rect
+            x={x - step / 2}
+            y={marginTop}
+            width={step}
+            height={chartH}
+            fill="transparent"
+            className="cursor-crosshair"
+          >
+            <title>{`${d.date}\nO: $${d.open.toFixed(2)}  H: $${d.high.toFixed(2)}\nL: $${d.low.toFixed(2)}  C: $${d.close.toFixed(2)}`}</title>
+          </rect>
+        </g>
+      );
+    });
+
+    return (
+      <>
+        {/* Grid lines */}
+        {yTicks.map((tick, i) => (
+          <g key={`tick-${i}`}>
+            <line
+              x1={marginLeft} y1={yScale(tick)}
+              x2={600 - marginRight} y2={yScale(tick)}
+              stroke="hsl(var(--border))" strokeDasharray="3 3" strokeWidth={0.5}
+            />
+            <text
+              x={marginLeft - 6} y={yScale(tick) + 3.5}
+              textAnchor="end"
+              fill="hsl(var(--muted-foreground))"
+              fontSize={10}
+              fontFamily="JetBrains Mono, monospace"
+            >
+              ${tick.toFixed(0)}
+            </text>
+          </g>
+        ))}
+        {/* X labels */}
+        {data.map((d, i) => {
+          if (i % labelStep !== 0) return null;
+          const x = marginLeft + step * i + step / 2;
+          return (
+            <text
+              key={`x-${i}`}
+              x={x}
+              y={height - 8}
+              textAnchor="middle"
+              fill="hsl(var(--muted-foreground))"
+              fontSize={10}
+              fontFamily="JetBrains Mono, monospace"
+            >
+              {d.date}
+            </text>
+          );
+        })}
+        {candles}
+      </>
+    );
+  }, [data, height]);
+
+  if (!data.length) {
+    return (
+      <div style={{ height }} className="flex items-center justify-center text-muted-foreground">
+        No data
+      </div>
+    );
+  }
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-        <XAxis
-          dataKey="date"
-          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-          tickLine={false}
-          axisLine={false}
-        />
-        <YAxis
-          domain={[minVal - padding, maxVal + padding]}
-          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
-          tickLine={false}
-          axisLine={false}
-          tickFormatter={v => `$${v}`}
-        />
-        <Tooltip
-          contentStyle={{
-            background: 'hsl(var(--glass-bg))',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            border: '1px solid hsl(var(--glass-border))',
-            borderRadius: '16px',
-            fontSize: '12px',
-            fontFamily: 'JetBrains Mono',
-            boxShadow: 'var(--glass-shadow)',
-          }}
-          labelStyle={{ color: 'hsl(var(--foreground))' }}
-          content={({ active, payload, label }) => {
-            if (!active || !payload?.[0]) return null;
-            const d = payload[0].payload as StockTimeSeriesPoint;
-            const isUp = d.close >= d.open;
-            return (
-              <div style={{
-                background: 'hsl(var(--glass-bg))',
-                backdropFilter: 'blur(24px)',
-                border: '1px solid hsl(var(--glass-border))',
-                borderRadius: '16px',
-                padding: '10px 14px',
-                fontSize: '12px',
-                fontFamily: 'JetBrains Mono',
-                boxShadow: 'var(--glass-shadow)',
-              }}>
-                <p style={{ color: 'hsl(var(--foreground))', marginBottom: 6, fontWeight: 500 }}>{label}</p>
-                <p style={{ color: 'hsl(var(--muted-foreground))' }}>O: ${d.open.toFixed(2)}</p>
-                <p style={{ color: 'hsl(var(--muted-foreground))' }}>H: ${d.high.toFixed(2)}</p>
-                <p style={{ color: 'hsl(var(--muted-foreground))' }}>L: ${d.low.toFixed(2)}</p>
-                <p style={{ color: isUp ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)', fontWeight: 600 }}>C: ${d.close.toFixed(2)}</p>
-              </div>
-            );
-          }}
-        />
-        <Bar
-          dataKey="high"
-          shape={<CandlestickShape yAxis={undefined} />}
-          isAnimationActive={false}
-        >
-          {data.map((entry, index) => (
-            <Cell key={index} />
-          ))}
-        </Bar>
-      </ComposedChart>
-    </ResponsiveContainer>
+    <svg
+      viewBox={`0 0 600 ${height}`}
+      width="100%"
+      height={height}
+      className="overflow-visible"
+      preserveAspectRatio="xMidYMid meet"
+    >
+      {chart}
+    </svg>
   );
 }
