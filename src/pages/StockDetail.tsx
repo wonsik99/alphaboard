@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useStockQuote, useStockTimeSeries, useMarketNews } from '@/hooks/useStockData';
+import { useStockQuote, useStockTimeSeries, useCompanyNews } from '@/hooks/useStockData';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useI18n } from '@/hooks/useI18n';
 import type { TimeRange } from '@/lib/types';
@@ -34,7 +34,7 @@ const StockDetail = () => {
   const [chartType, setChartType] = useState<ChartType>('line');
   const { data: quote, isLoading: quoteLoading } = useStockQuote(symbol || '');
   const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol || '', range);
-  const { data: news } = useMarketNews();
+  const { data: companyNews } = useCompanyNews(symbol || '');
   const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
   const { locale, t } = useI18n();
   const dateLocale = locale === 'ko' ? ko : enUS;
@@ -44,7 +44,7 @@ const StockDetail = () => {
   const strokeColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
   const fillColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
 
-  const relatedNews = news?.filter(a => a.tickers.includes(symbol || ''))?.slice(0, 5);
+  const relatedNews = companyNews?.slice(0, 10);
 
   return (
     <div className="min-h-screen bg-background">
