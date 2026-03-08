@@ -135,11 +135,22 @@ Deno.serve(async (req) => {
         break;
       }
       case 'timeseries': {
-        const { fn, interval } = functionForRange(body.range || '1M');
+        const range = body.range || '1M';
+        const { fn, interval } = functionForRange(range);
         const params: Record<string, string> = { function: fn, symbol: body.symbol!, outputsize: 'compact' };
         if (interval) params.interval = interval;
         const data = await fetchAV(params);
-        result = parseTimeSeries(data, body.range || '1M');
+        let parsed = parseTimeSeries(data, range);
+        
+        // Fallback: if intraday returns empty (weekend/holiday), use daily data instead
+        if (parsed.length === 0 && (range === '1D' || range === '1W')) {
+          const fallbackParams: Record<string, string> = { function: 'TIME_SERIES_DAILY', symbol: body.symbol!, outputsize: 'compact' };
+          const fallbackData = await fetchAV(fallbackParams);
+          const limit = range === '1D' ? 1 : 5;
+          parsed = parseTimeSeries(fallbackData, '1M').slice(-limit);
+        }
+        
+        result = parsed;
         break;
       }
       case 'news': {
