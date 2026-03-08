@@ -13,6 +13,7 @@ interface RequestBody {
   symbol?: string;
   symbols?: string[];
   range?: string;
+  keywords?: string;
 }
 
 async function fetchAV(params: Record<string, string>) {
