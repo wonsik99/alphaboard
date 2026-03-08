@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import type { MarketIndex, StockQuote, StockTimeSeriesPoint, NewsArticle, TimeRange } from '@/lib/types';
+import type { MarketIndex, StockQuote, StockTimeSeriesPoint, NewsArticle, TimeRange, SearchResult } from '@/lib/types';
 
 async function invokeEdgeFunction<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(functionName, { body });
