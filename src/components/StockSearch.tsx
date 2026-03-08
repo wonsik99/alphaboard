@@ -50,7 +50,7 @@ export function StockSearch({ onSelect, className }: StockSearchProps) {
           <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
         )}
         <Input
-          placeholder="종목 검색 (예: AAPL, Tesla)"
+          placeholder={t('searchPlaceholder')}
           value={query}
           onChange={e => {
             setQuery(e.target.value);
