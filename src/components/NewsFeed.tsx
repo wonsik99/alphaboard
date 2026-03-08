@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useMarketNews } from '@/hooks/useStockData';
+import { useWatchlistNews, useMarketNews } from '@/hooks/useStockData';
+import { useWatchlist } from '@/hooks/useWatchlist';
 import { useI18n } from '@/hooks/useI18n';
 import { cn } from '@/lib/utils';
 import { Newspaper, ExternalLink } from 'lucide-react';
@@ -9,9 +10,16 @@ import { formatDistanceToNow } from 'date-fns';
 import { ko, enUS } from 'date-fns/locale';
 
 export function NewsFeed() {
-  const { data: news, isLoading } = useMarketNews();
+  const { watchlist } = useWatchlist();
+  const symbols = watchlist.map(w => w.symbol);
+  const { data: watchlistNews, isLoading: wlLoading } = useWatchlistNews(symbols);
+  const { data: generalNews, isLoading: gnLoading } = useMarketNews();
   const { locale, t } = useI18n();
   const dateLocale = locale === 'ko' ? ko : enUS;
+
+  // Use watchlist news if available, fall back to general
+  const news = watchlistNews && watchlistNews.length > 0 ? watchlistNews : generalNews;
+  const isLoading = wlLoading || ((!watchlistNews || watchlistNews.length === 0) && gnLoading);
 
   return (
     <Card>
