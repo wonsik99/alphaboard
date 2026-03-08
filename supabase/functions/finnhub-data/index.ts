@@ -94,11 +94,19 @@ Deno.serve(async (req) => {
         const sym = body.symbol!;
         const range = body.range || '1M';
 
-        async function fetchAV(params: Record<string, string>) {
+        async function fetchAV(params: Record<string, string>): Promise<Record<string, unknown>> {
           const url = new URL(AV_BASE_URL);
           for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
           const res = await fetch(url.toString());
-          return res.json();
+          const data = await res.json() as Record<string, unknown>;
+          // Rate limit detection - retry after delay
+          if (data['Note'] || data['Information']) {
+            console.log('AV rate limited, waiting 12s and retrying...');
+            await new Promise(r => setTimeout(r, 12000));
+            const res2 = await fetch(url.toString());
+            return res2.json() as Promise<Record<string, unknown>>;
+          }
+          return data;
         }
 
         function parseTS(ts: Record<string, Record<string, string>>, limit: number) {
