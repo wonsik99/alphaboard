@@ -98,8 +98,13 @@ Deno.serve(async (req) => {
         async function fetchAV(params: Record<string, string>) {
           const url = new URL(AV_BASE_URL);
           for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+          console.log('AV request:', url.toString().replace(ALPHA_VANTAGE_KEY, '***'));
           const res = await fetch(url.toString());
-          return res.json();
+          const data = await res.json();
+          const note = (data as Record<string, unknown>)?.['Note'] || (data as Record<string, unknown>)?.['Information'] || '';
+          if (note) console.log('AV rate limit:', note);
+          console.log('AV response keys:', Object.keys(data));
+          return data;
         }
 
         function parseTS(ts: Record<string, Record<string, string>>, limit: number, useTime: boolean) {
