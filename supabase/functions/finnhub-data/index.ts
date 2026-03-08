@@ -223,6 +223,46 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case 'watchlist-news': {
+        const symbols = body.symbols || [];
+        if (symbols.length === 0) { result = []; break; }
+        
+        const today = new Date();
+        const weekAgo = new Date(today.getTime() - 7 * 86400000);
+        const fmt = (d: Date) => d.toISOString().slice(0, 10);
+        
+        // Fetch company news for up to 5 symbols (to avoid rate limits)
+        const targetSymbols = symbols.slice(0, 5);
+        const promises = targetSymbols.map((sym: string) =>
+          fetchFH('/company-news', { symbol: sym, from: fmt(weekAgo), to: fmt(today) })
+            .then((data: unknown) => {
+              const articles = Array.isArray(data) ? data : [];
+              return articles.slice(0, 5).map((item: Record<string, unknown>) => ({
+                title: item.headline as string,
+                url: item.url as string,
+                source: item.source as string,
+                publishedAt: new Date((item.datetime as number) * 1000).toISOString(),
+                summary: item.summary as string,
+                sentiment: 'neutral',
+                tickers: [sym],
+              }));
+            })
+            .catch(() => [])
+        );
+        
+        const allNews = (await Promise.all(promises)).flat();
+        // Sort by date descending and deduplicate by URL
+        const seen = new Set<string>();
+        const unique = allNews
+          .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+          .filter(a => {
+            if (seen.has(a.url)) return false;
+            seen.add(a.url);
+            return true;
+          });
+        result = unique.slice(0, 15);
+        break;
+
       default:
         return new Response(JSON.stringify({ error: 'Unknown action' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
