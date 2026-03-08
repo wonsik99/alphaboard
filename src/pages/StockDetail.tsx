@@ -31,6 +31,7 @@ const StockDetail = () => {
   const { symbol } = useParams<{ symbol: string }>();
   const navigate = useNavigate();
   const [range, setRange] = useState<TimeRange>('1M');
+  const [chartType, setChartType] = useState<ChartType>('line');
   const { data: quote, isLoading: quoteLoading } = useStockQuote(symbol || '');
   const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol || '', range);
   const { data: news } = useMarketNews();
