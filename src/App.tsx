@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { I18nProvider } from "@/hooks/useI18n";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ThemeProvider } from "@/hooks/useTheme";
 import Index from "./pages/Index";
 import StockDetail from "./pages/StockDetail";
 import Auth from "./pages/Auth";
@@ -20,9 +21,9 @@ const App = () => (
       <TooltipProvider>
         <I18nProvider>
           <AuthProvider>
-            <Toaster />
-            <Sonner />
-            <div className="dark">
+            <ThemeProvider>
+              <Toaster />
+              <Sonner />
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
@@ -31,7 +32,7 @@ const App = () => (
                 <Route path="/stock/:symbol" element={<StockDetail />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </div>
+            </ThemeProvider>
           </AuthProvider>
         </I18nProvider>
       </TooltipProvider>
