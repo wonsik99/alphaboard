@@ -167,7 +167,7 @@ const StockDetail = () => {
                   <div className="flex items-center gap-2 mt-1.5">
                     <span className="text-xs text-muted-foreground">{article.source}</span>
                     <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true })}</span>
+                    <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true, locale: dateLocale })}</span>
                     <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', article.sentiment === 'bullish' && 'bg-gain/10 text-gain', article.sentiment === 'bearish' && 'bg-loss/10 text-loss')}>
                       {article.sentiment === 'bullish' ? '긍정' : article.sentiment === 'bearish' ? '부정' : '중립'}
                     </Badge>
