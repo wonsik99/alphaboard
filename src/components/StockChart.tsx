@@ -110,7 +110,7 @@ export function StockChart() {
                 }}
                 labelStyle={{ color: 'hsl(210, 40%, 96%)' }}
                 itemStyle={{ color: strokeColor }}
-                formatter={(value: number) => [`$${value.toFixed(2)}`, '종가']}
+                formatter={(value: number) => [`$${value.toFixed(2)}`, t('close')]}
               />
               <Area
                 type="monotone"
