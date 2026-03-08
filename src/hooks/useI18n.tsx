@@ -4,27 +4,20 @@ type Locale = 'ko' | 'en';
 
 const translations = {
   ko: {
-    // Header
     subtitle: 'US Market Dashboard · 실시간 데이터',
-    // Index page
     marketIndices: '주요 지수',
-    // StockChart
     close: '종가',
     noData: '데이터를 불러올 수 없습니다',
-    // Watchlist
     watchlist: '관심 종목',
     addStock: '종목 추가 (예: NVDA)',
     emptyWatchlist: '관심 종목을 추가해보세요',
-    // NewsFeed
     marketNews: '시장 뉴스',
     noNews: '뉴스를 불러올 수 없습니다',
     bullish: '긍정',
     bearish: '부정',
     neutral: '중립',
-    // Search
     searchPlaceholder: '종목 검색 (예: AAPL, Tesla)',
     noResults: '검색 결과가 없습니다',
-    // StockDetail
     inWatchlist: '관심 종목',
     add: '추가',
     open: '시가',
@@ -34,6 +27,19 @@ const translations = {
     volume: '거래량',
     relatedNews: '관련 뉴스',
     noChartData: '데이터를 불러올 수 없습니다',
+    // Auth
+    login: '로그인',
+    signup: '회원가입',
+    logout: '로그아웃',
+    email: '이메일',
+    password: '비밀번호',
+    displayName: '닉네임',
+    loginSubtitle: '계정에 로그인하세요',
+    signupSubtitle: '새 계정을 만드세요',
+    signupSuccess: '가입 완료!',
+    checkEmail: '이메일을 확인하여 인증해주세요',
+    noAccount: '계정이 없으신가요? 회원가입',
+    hasAccount: '이미 계정이 있으신가요? 로그인',
   },
   en: {
     subtitle: 'US Market Dashboard · Real-time Data',
@@ -59,6 +65,19 @@ const translations = {
     volume: 'Volume',
     relatedNews: 'Related News',
     noChartData: 'Unable to load data',
+    // Auth
+    login: 'Log in',
+    signup: 'Sign up',
+    logout: 'Log out',
+    email: 'Email',
+    password: 'Password',
+    displayName: 'Display name',
+    loginSubtitle: 'Sign in to your account',
+    signupSubtitle: 'Create a new account',
+    signupSuccess: 'Sign up complete!',
+    checkEmail: 'Please check your email to verify your account',
+    noAccount: "Don't have an account? Sign up",
+    hasAccount: 'Already have an account? Log in',
   },
 } as const;
 
