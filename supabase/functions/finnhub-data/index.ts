@@ -262,6 +262,7 @@ Deno.serve(async (req) => {
           });
         result = unique.slice(0, 15);
         break;
+      }
 
       default:
         return new Response(JSON.stringify({ error: 'Unknown action' }), {
