@@ -42,6 +42,7 @@ const Index = () => {
           </div>
         </div>
       </main>
+      <StockChatbot />
     </div>
   );
 };
