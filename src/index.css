@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=SF+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,33 +6,42 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 20% 10%;
+    --background: 220 15% 94%;
+    --foreground: 220 20% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card-foreground: 220 20% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
-    --primary: 217 91% 60%;
+    --popover-foreground: 220 20% 12%;
+    --primary: 210 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 90%;
-    --secondary-foreground: 220 20% 10%;
-    --muted: 220 14% 94%;
-    --muted-foreground: 220 10% 46%;
-    --accent: 220 14% 90%;
-    --accent-foreground: 220 20% 10%;
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 220 20% 12%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 42%;
+    --accent: 220 14% 92%;
+    --accent-foreground: 220 20% 12%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 87%;
-    --input: 220 13% 87%;
-    --ring: 217 91% 60%;
-    --radius: 0.75rem;
+    --border: 0 0% 100%;
+    --input: 220 13% 90%;
+    --ring: 210 100% 50%;
+    --radius: 1.25rem;
 
-    --gain: 142 71% 45%;
-    --gain-foreground: 142 71% 95%;
-    --loss: 0 84% 60%;
-    --loss-foreground: 0 84% 95%;
-    --chart-accent: 217 91% 60%;
+    --gain: 152 69% 40%;
+    --gain-foreground: 152 69% 95%;
+    --loss: 0 72% 55%;
+    --loss-foreground: 0 72% 95%;
+    --chart-accent: 210 100% 50%;
     --chart-grid: 220 13% 91%;
+
+    /* Glass tokens */
+    --glass-bg: 0 0% 100% / 0.55;
+    --glass-border: 0 0% 100% / 0.7;
+    --glass-highlight: 0 0% 100% / 0.9;
+    --glass-blur: 24px;
+    --glass-shadow: 0 8px 32px -8px hsl(220 20% 12% / 0.08), 0 2px 8px -2px hsl(220 20% 12% / 0.04);
+    --glass-shadow-lg: 0 16px 48px -12px hsl(220 20% 12% / 0.12), 0 4px 16px -4px hsl(220 20% 12% / 0.06);
+    --glass-inner-highlight: inset 0 1px 0 0 hsl(0 0% 100% / 0.8);
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -41,45 +50,54 @@
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 210 100% 50%;
   }
 
   .dark {
-    --background: 222 47% 6%;
+    --background: 225 25% 8%;
     --foreground: 210 40% 96%;
-    --card: 222 47% 9%;
+    --card: 225 25% 12%;
     --card-foreground: 210 40% 96%;
-    --popover: 222 47% 9%;
+    --popover: 225 25% 12%;
     --popover-foreground: 210 40% 96%;
-    --primary: 217 91% 60%;
+    --primary: 210 100% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 222 30% 14%;
+    --secondary: 225 20% 16%;
     --secondary-foreground: 210 40% 96%;
-    --muted: 222 30% 14%;
+    --muted: 225 20% 16%;
     --muted-foreground: 215 20% 55%;
-    --accent: 222 30% 14%;
+    --accent: 225 20% 16%;
     --accent-foreground: 210 40% 96%;
     --destructive: 0 63% 31%;
     --destructive-foreground: 210 40% 98%;
-    --border: 222 30% 16%;
-    --input: 222 30% 16%;
-    --ring: 217 91% 60%;
+    --border: 225 15% 18%;
+    --input: 225 20% 16%;
+    --ring: 210 100% 60%;
 
-    --gain: 142 71% 45%;
-    --gain-foreground: 142 80% 90%;
-    --loss: 0 84% 60%;
-    --loss-foreground: 0 84% 90%;
-    --chart-accent: 217 91% 60%;
-    --chart-grid: 222 30% 16%;
+    --gain: 152 69% 45%;
+    --gain-foreground: 152 80% 90%;
+    --loss: 0 72% 58%;
+    --loss-foreground: 0 72% 90%;
+    --chart-accent: 210 100% 60%;
+    --chart-grid: 225 20% 16%;
 
-    --sidebar-background: 222 47% 8%;
+    /* Glass tokens - dark */
+    --glass-bg: 225 25% 14% / 0.6;
+    --glass-border: 225 15% 22% / 0.6;
+    --glass-highlight: 225 15% 28% / 0.3;
+    --glass-blur: 24px;
+    --glass-shadow: 0 8px 32px -8px hsl(0 0% 0% / 0.3), 0 2px 8px -2px hsl(0 0% 0% / 0.2);
+    --glass-shadow-lg: 0 16px 48px -12px hsl(0 0% 0% / 0.4), 0 4px 16px -4px hsl(0 0% 0% / 0.25);
+    --glass-inner-highlight: inset 0 1px 0 0 hsl(225 15% 28% / 0.4);
+
+    --sidebar-background: 225 25% 10%;
     --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary: 210 100% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 30% 14%;
+    --sidebar-accent: 225 20% 16%;
     --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 222 30% 16%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-border: 225 15% 18%;
+    --sidebar-ring: 210 100% 60%;
   }
 }
 
@@ -88,10 +106,36 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Space Grotesk', sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid hsl(var(--glass-border));
+    box-shadow: var(--glass-shadow), var(--glass-inner-highlight);
+  }
+  .glass-strong {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(40px) saturate(1.8);
+    -webkit-backdrop-filter: blur(40px) saturate(1.8);
+    border: 1px solid hsl(var(--glass-border));
+    box-shadow: var(--glass-shadow-lg), var(--glass-inner-highlight);
+  }
+  .glass-subtle {
+    background: hsl(var(--glass-bg));
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid hsl(var(--glass-border));
+    box-shadow: var(--glass-inner-highlight);
   }
 }

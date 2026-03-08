@@ -14,20 +14,22 @@ export function NewsFeed() {
   const dateLocale = locale === 'ko' ? ko : enUS;
 
   return (
-    <Card className="bg-card border-border">
+    <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
-          <Newspaper className="h-5 w-5 text-primary" />
+          <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center">
+            <Newspaper className="h-4 w-4 text-primary" />
+          </div>
           {t('marketNews')}
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0 space-y-3">
+      <CardContent className="pt-0 space-y-1">
         {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="space-y-2 pb-3 border-b border-border last:border-0">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-3 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
+            <div key={i} className="space-y-2 pb-3 border-b border-border/30 last:border-0">
+              <Skeleton className="h-4 w-full rounded-full" />
+              <Skeleton className="h-3 w-3/4 rounded-full" />
+              <Skeleton className="h-3 w-1/2 rounded-full" />
             </div>
           ))
         ) : news && news.length > 0 ? (
@@ -37,7 +39,7 @@ export function NewsFeed() {
               href={article.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block pb-3 border-b border-border last:border-0 hover:bg-secondary/30 -mx-2 px-2 py-2 rounded-md transition-colors group"
+              className="block pb-3 border-b border-border/30 last:border-0 hover:bg-secondary/30 -mx-2 px-3 py-2.5 rounded-xl transition-all duration-200 group"
             >
               <div className="flex items-start justify-between gap-2">
                 <h4 className="text-sm font-medium leading-snug group-hover:text-primary transition-colors line-clamp-2">
@@ -46,7 +48,7 @@ export function NewsFeed() {
                 <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{article.summary}</p>
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span className="text-xs text-muted-foreground">{article.source}</span>
                 <span className="text-xs text-muted-foreground">·</span>
                 <span className="text-xs text-muted-foreground">
@@ -55,22 +57,22 @@ export function NewsFeed() {
                 <Badge
                   variant="secondary"
                   className={cn(
-                    'text-[10px] px-1.5 py-0',
-                    article.sentiment === 'bullish' && 'bg-gain/10 text-gain border-gain/20',
-                    article.sentiment === 'bearish' && 'bg-loss/10 text-loss border-loss/20',
+                    'text-[10px] px-2 py-0.5 rounded-full border-0',
+                    article.sentiment === 'bullish' && 'bg-gain/15 text-gain',
+                    article.sentiment === 'bearish' && 'bg-loss/15 text-loss',
                     article.sentiment === 'neutral' && 'bg-muted text-muted-foreground',
                   )}
                 >
                   {article.sentiment === 'bullish' ? t('bullish') : article.sentiment === 'bearish' ? t('bearish') : t('neutral')}
                 </Badge>
                 {article.tickers.slice(0, 3).map(ticker => (
-                  <Badge key={ticker} variant="outline" className="text-[10px] px-1.5 py-0">{ticker}</Badge>
+                  <Badge key={ticker} variant="outline" className="text-[10px] px-2 py-0.5 rounded-full border-border/50">{ticker}</Badge>
                 ))}
               </div>
             </a>
           ))
         ) : (
-          <p className="text-sm text-muted-foreground py-4 text-center">{t('noNews')}</p>
+          <p className="text-sm text-muted-foreground py-6 text-center">{t('noNews')}</p>
         )}
       </CardContent>
     </Card>

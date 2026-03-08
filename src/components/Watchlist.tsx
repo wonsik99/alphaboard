@@ -27,11 +27,13 @@ export function Watchlist() {
   };
 
   return (
-    <Card className="bg-card border-border">
+    <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Star className="h-5 w-5 text-primary" />
+            <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center">
+              <Star className="h-4 w-4 text-primary" />
+            </div>
             {t('watchlist')}
           </CardTitle>
         </div>
@@ -40,23 +42,23 @@ export function Watchlist() {
             placeholder={t('addStock')}
             value={newSymbol}
             onChange={e => setNewSymbol(e.target.value)}
-            className="bg-secondary border-border text-sm"
+            className="glass-subtle border-0 text-sm rounded-xl h-9"
           />
-          <Button type="submit" size="icon" variant="secondary" className="shrink-0">
+          <Button type="submit" size="icon" variant="secondary" className="shrink-0 rounded-xl h-9 w-9 glass-subtle border-0">
             <Plus className="h-4 w-4" />
           </Button>
         </form>
       </CardHeader>
-      <CardContent className="pt-0 space-y-1">
+      <CardContent className="pt-0 space-y-0.5">
         {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex items-center justify-between py-2">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-20" />
+            <div key={i} className="flex items-center justify-between py-2.5">
+              <Skeleton className="h-4 w-16 rounded-full" />
+              <Skeleton className="h-4 w-20 rounded-full" />
             </div>
           ))
         ) : watchlist.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">{t('emptyWatchlist')}</p>
+          <p className="text-sm text-muted-foreground py-6 text-center">{t('emptyWatchlist')}</p>
         ) : (
           watchlist.map(item => {
             const quote = quotes?.find(q => q.symbol === item.symbol);
@@ -64,7 +66,7 @@ export function Watchlist() {
             return (
               <div
                 key={item.symbol}
-                className="flex items-center justify-between py-2 px-2 rounded-md hover:bg-secondary/50 cursor-pointer transition-colors group"
+                className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-secondary/40 cursor-pointer transition-all duration-200 group"
                 onClick={() => navigate(`/stock/${item.symbol}`)}
               >
                 <div className="flex-1 min-w-0">
@@ -75,19 +77,19 @@ export function Watchlist() {
                   {quote ? (
                     <>
                       <p className="text-sm font-mono font-medium">${quote.price.toFixed(2)}</p>
-                      <p className={cn('text-xs font-mono', isPositive ? 'text-gain' : 'text-loss')}>
-                        {isPositive ? <TrendingUp className="h-3 w-3 inline mr-0.5" /> : <TrendingDown className="h-3 w-3 inline mr-0.5" />}
+                      <p className={cn('text-xs font-mono flex items-center justify-end gap-0.5', isPositive ? 'text-gain' : 'text-loss')}>
+                        {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                         {isPositive ? '+' : ''}{quote.changePercent.toFixed(2)}%
                       </p>
                     </>
                   ) : (
-                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-16 rounded-full" />
                   )}
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  className="h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                   onClick={(e) => { e.stopPropagation(); removeFromWatchlist(item.symbol); }}
                 >
                   <X className="h-3 w-3" />

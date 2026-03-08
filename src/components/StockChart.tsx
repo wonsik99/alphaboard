@@ -29,11 +29,11 @@ export function StockChart() {
   const { data: quote } = useStockQuote(symbol);
 
   const isPositive = quote ? quote.change >= 0 : true;
-  const strokeColor = isPositive ? 'hsl(142, 71%, 45%)' : 'hsl(0, 84%, 60%)';
-  const fillColor = isPositive ? 'hsl(142, 71%, 45%)' : 'hsl(0, 84%, 60%)';
+  const strokeColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
+  const fillColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
 
   return (
-    <Card className="bg-card border-border">
+    <Card>
       <CardHeader className="pb-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -45,11 +45,13 @@ export function StockChart() {
             </CardTitle>
             {quote && (
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-2xl font-bold font-mono">
+                <span className="text-2xl font-semibold font-mono tracking-tight">
                   ${quote.price.toFixed(2)}
                 </span>
                 <span className={cn('flex items-center gap-1 text-sm font-mono font-medium', isPositive ? 'text-gain' : 'text-loss')}>
-                  {isPositive ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />}
+                  <div className={cn('flex items-center justify-center h-5 w-5 rounded-full', isPositive ? 'bg-gain/15' : 'bg-loss/15')}>
+                    {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                  </div>
                   {isPositive ? '+' : ''}{quote.change.toFixed(2)} ({isPositive ? '+' : ''}{quote.changePercent.toFixed(2)}%)
                 </span>
               </div>
@@ -66,7 +68,10 @@ export function StockChart() {
               key={r}
               size="sm"
               variant={range === r ? 'default' : 'ghost'}
-              className={cn('text-xs px-3 h-7', range === r && 'bg-primary text-primary-foreground')}
+              className={cn(
+                'text-xs px-3.5 h-7 rounded-full transition-all',
+                range === r && 'bg-primary text-primary-foreground shadow-md shadow-primary/20'
+              )}
               onClick={() => setRange(r)}
             >
               {r}
@@ -76,39 +81,42 @@ export function StockChart() {
       </CardHeader>
       <CardContent className="pt-0">
         {tsLoading ? (
-          <Skeleton className="h-[300px] w-full" />
+          <Skeleton className="h-[300px] w-full rounded-xl" />
         ) : timeseries && timeseries.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={timeseries}>
               <defs>
                 <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={fillColor} stopOpacity={0.2} />
+                  <stop offset="5%" stopColor={fillColor} stopOpacity={0.25} />
                   <stop offset="95%" stopColor={fillColor} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 30%, 16%)" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
               <XAxis
                 dataKey="date"
-                tick={{ fill: 'hsl(215, 20%, 55%)', fontSize: 11 }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
                 domain={['auto', 'auto']}
-                tick={{ fill: 'hsl(215, 20%, 55%)', fontSize: 11 }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
                 tickFormatter={v => `$${v}`}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: 'hsl(222, 47%, 9%)',
-                  border: '1px solid hsl(222, 30%, 16%)',
-                  borderRadius: '8px',
+                  background: 'hsl(var(--glass-bg))',
+                  backdropFilter: 'blur(24px)',
+                  WebkitBackdropFilter: 'blur(24px)',
+                  border: '1px solid hsl(var(--glass-border))',
+                  borderRadius: '16px',
                   fontSize: '12px',
                   fontFamily: 'JetBrains Mono',
+                  boxShadow: 'var(--glass-shadow)',
                 }}
-                labelStyle={{ color: 'hsl(210, 40%, 96%)' }}
+                labelStyle={{ color: 'hsl(var(--foreground))' }}
                 itemStyle={{ color: strokeColor }}
                 formatter={(value: number) => [`$${value.toFixed(2)}`, t('close')]}
               />
