@@ -38,8 +38,8 @@ const StockDetail = () => {
 
   const inWatchlist = symbol ? isInWatchlist(symbol) : false;
   const isPositive = quote ? quote.change >= 0 : true;
-  const strokeColor = isPositive ? 'hsl(142, 71%, 45%)' : 'hsl(0, 84%, 60%)';
-  const fillColor = isPositive ? 'hsl(142, 71%, 45%)' : 'hsl(0, 84%, 60%)';
+  const strokeColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
+  const fillColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
 
   const relatedNews = news?.filter(a => a.tickers.includes(symbol || ''))?.slice(0, 5);
 
@@ -48,18 +48,19 @@ const StockDetail = () => {
       <DashboardHeader />
       <main className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           {quoteLoading ? (
-            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-8 w-48 rounded-full" />
           ) : (
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold">{symbol}</h1>
+              <h1 className="text-2xl font-semibold">{symbol}</h1>
               <span className="text-muted-foreground">{quote?.name}</span>
               <Button
                 variant={inWatchlist ? 'default' : 'outline'}
                 size="sm"
+                className={cn('rounded-full', inWatchlist && 'shadow-md shadow-primary/20')}
                 onClick={() => {
                   if (inWatchlist) removeFromWatchlist(symbol!);
                   else addToWatchlist({ symbol: symbol!, name: quote?.name || symbol! });
@@ -72,14 +73,15 @@ const StockDetail = () => {
           )}
         </div>
 
-        {/* Price section */}
         {quoteLoading ? (
-          <Skeleton className="h-16 w-48" />
+          <Skeleton className="h-16 w-48 rounded-2xl" />
         ) : quote && (
           <div>
-            <p className="text-4xl font-bold font-mono">${quote.price.toFixed(2)}</p>
-            <div className={cn('flex items-center gap-2 mt-1', isPositive ? 'text-gain' : 'text-loss')}>
-              {isPositive ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
+            <p className="text-4xl font-semibold font-mono tracking-tight">${quote.price.toFixed(2)}</p>
+            <div className={cn('flex items-center gap-2 mt-1.5', isPositive ? 'text-gain' : 'text-loss')}>
+              <div className={cn('flex items-center justify-center h-6 w-6 rounded-full', isPositive ? 'bg-gain/15' : 'bg-loss/15')}>
+                {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+              </div>
               <span className="text-lg font-mono font-medium">
                 {isPositive ? '+' : ''}{quote.change.toFixed(2)} ({isPositive ? '+' : ''}{quote.changePercent.toFixed(2)}%)
               </span>
@@ -87,8 +89,7 @@ const StockDetail = () => {
           </div>
         )}
 
-        {/* Chart */}
-        <Card className="bg-card border-border">
+        <Card>
           <CardHeader className="pb-2">
             <div className="flex gap-1">
               {TIME_RANGES.map(r => (
@@ -96,7 +97,7 @@ const StockDetail = () => {
                   key={r}
                   size="sm"
                   variant={range === r ? 'default' : 'ghost'}
-                  className={cn('text-xs px-3 h-7', range === r && 'bg-primary text-primary-foreground')}
+                  className={cn('text-xs px-3.5 h-7 rounded-full', range === r && 'shadow-md shadow-primary/20')}
                   onClick={() => setRange(r)}
                 >
                   {r}
@@ -106,22 +107,31 @@ const StockDetail = () => {
           </CardHeader>
           <CardContent>
             {tsLoading ? (
-              <Skeleton className="h-[350px] w-full" />
+              <Skeleton className="h-[350px] w-full rounded-xl" />
             ) : timeseries && timeseries.length > 0 ? (
               <ResponsiveContainer width="100%" height={350}>
                 <AreaChart data={timeseries}>
                   <defs>
                     <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={fillColor} stopOpacity={0.2} />
+                      <stop offset="5%" stopColor={fillColor} stopOpacity={0.25} />
                       <stop offset="95%" stopColor={fillColor} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(222, 30%, 16%)" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: 'hsl(215, 20%, 55%)', fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis domain={['auto', 'auto']} tick={{ fill: 'hsl(215, 20%, 55%)', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis domain={['auto', 'auto']} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
                   <Tooltip
-                    contentStyle={{ backgroundColor: 'hsl(222, 47%, 9%)', border: '1px solid hsl(222, 30%, 16%)', borderRadius: '8px', fontSize: '12px', fontFamily: 'JetBrains Mono' }}
-                    labelStyle={{ color: 'hsl(210, 40%, 96%)' }}
+                    contentStyle={{
+                      background: 'hsl(var(--glass-bg))',
+                      backdropFilter: 'blur(24px)',
+                      WebkitBackdropFilter: 'blur(24px)',
+                      border: '1px solid hsl(var(--glass-border))',
+                      borderRadius: '16px',
+                      fontSize: '12px',
+                      fontFamily: 'JetBrains Mono',
+                      boxShadow: 'var(--glass-shadow)',
+                    }}
+                    labelStyle={{ color: 'hsl(var(--foreground))' }}
                     formatter={(value: number) => [`$${value.toFixed(2)}`, t('close')]}
                   />
                   <Area type="monotone" dataKey="close" stroke={strokeColor} strokeWidth={2} fill="url(#detailGradient)" />
@@ -133,7 +143,6 @@ const StockDetail = () => {
           </CardContent>
         </Card>
 
-        {/* Quote details */}
         {quote && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
@@ -143,23 +152,22 @@ const StockDetail = () => {
               { label: t('prevClose'), value: `$${quote.previousClose.toFixed(2)}` },
               { label: t('volume'), value: quote.volume.toLocaleString() },
             ].map(item => (
-              <Card key={item.label} className="bg-card border-border">
-                <CardContent className="p-3">
+              <Card key={item.label}>
+                <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">{item.label}</p>
-                  <p className="text-sm font-mono font-medium mt-0.5">{item.value}</p>
+                  <p className="text-sm font-mono font-medium mt-1">{item.value}</p>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
 
-        {/* Related news */}
         {relatedNews && relatedNews.length > 0 && (
-          <Card className="bg-card border-border">
+          <Card>
             <CardHeader><CardTitle className="text-lg">{t('relatedNews')}</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-1">
               {relatedNews.map((article, i) => (
-                <a key={i} href={article.url} target="_blank" rel="noopener noreferrer" className="block pb-3 border-b border-border last:border-0 hover:bg-secondary/30 -mx-2 px-2 py-2 rounded-md transition-colors group">
+                <a key={i} href={article.url} target="_blank" rel="noopener noreferrer" className="block pb-3 border-b border-border/30 last:border-0 hover:bg-secondary/30 -mx-2 px-3 py-2.5 rounded-xl transition-all duration-200 group">
                   <div className="flex items-start justify-between gap-2">
                     <h4 className="text-sm font-medium leading-snug group-hover:text-primary transition-colors line-clamp-2">{article.title}</h4>
                     <ExternalLink className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -168,7 +176,7 @@ const StockDetail = () => {
                     <span className="text-xs text-muted-foreground">{article.source}</span>
                     <span className="text-xs text-muted-foreground">·</span>
                     <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true, locale: dateLocale })}</span>
-                    <Badge variant="secondary" className={cn('text-[10px] px-1.5 py-0', article.sentiment === 'bullish' && 'bg-gain/10 text-gain', article.sentiment === 'bearish' && 'bg-loss/10 text-loss')}>
+                    <Badge variant="secondary" className={cn('text-[10px] px-2 py-0.5 rounded-full border-0', article.sentiment === 'bullish' && 'bg-gain/15 text-gain', article.sentiment === 'bearish' && 'bg-loss/15 text-loss')}>
                       {article.sentiment === 'bullish' ? t('bullish') : article.sentiment === 'bearish' ? t('bearish') : t('neutral')}
                     </Badge>
                   </div>

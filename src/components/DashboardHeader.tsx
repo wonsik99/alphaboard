@@ -6,22 +6,22 @@ export function DashboardHeader() {
   const { locale, setLocale, t } = useI18n();
 
   return (
-    <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+    <header className="glass-strong sticky top-0 z-50 border-b-0">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
             <BarChart3 className="h-5 w-5 text-primary-foreground" />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">StockPulse</h1>
+          <h1 className="text-xl font-semibold tracking-tight">StockPulse</h1>
         </div>
         <div className="flex items-center gap-3">
-          <p className="text-xs text-muted-foreground hidden sm:block">
+          <p className="text-xs text-muted-foreground hidden sm:block font-medium">
             {t('subtitle')}
           </p>
           <Button
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+            className="h-8 px-3 text-xs gap-1.5 rounded-full glass-subtle hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-all"
             onClick={() => setLocale(locale === 'ko' ? 'en' : 'ko')}
           >
             <Globe className="h-3.5 w-3.5" />

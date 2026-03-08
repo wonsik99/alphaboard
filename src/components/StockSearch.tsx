@@ -17,15 +17,13 @@ export function StockSearch({ onSelect, className }: StockSearchProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
 
-  // Debounce
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query.trim()), 350);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedQuery(query.trim()), 350);
+    return () => clearTimeout(timer);
   }, [query]);
 
   const { data: results, isLoading } = useStockSearch(debouncedQuery);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -45,9 +43,9 @@ export function StockSearch({ onSelect, className }: StockSearchProps) {
   return (
     <div ref={containerRef} className={cn('relative', className)}>
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         {isLoading && debouncedQuery && (
-          <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
+          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
         )}
         <Input
           placeholder={t('searchPlaceholder')}
@@ -57,23 +55,23 @@ export function StockSearch({ onSelect, className }: StockSearchProps) {
             setOpen(true);
           }}
           onFocus={() => query && setOpen(true)}
-          className="pl-9 pr-9 bg-secondary border-border h-9 text-sm"
+          className="pl-9 pr-9 glass-subtle border-0 h-9 text-sm rounded-xl"
         />
       </div>
 
       {open && debouncedQuery && results && results.length > 0 && (
-        <div className="absolute z-50 top-full mt-1 w-full min-w-[280px] bg-card border border-border rounded-lg shadow-xl overflow-hidden">
+        <div className="absolute z-50 top-full mt-2 w-full min-w-[280px] glass-strong rounded-2xl overflow-hidden">
           {results.map((r) => (
             <button
               key={r.symbol}
               onClick={() => handleSelect(r.symbol, r.name)}
-              className="w-full text-left px-3 py-2.5 hover:bg-secondary/60 transition-colors flex items-center justify-between gap-2 border-b border-border/50 last:border-0"
+              className="w-full text-left px-4 py-3 hover:bg-secondary/40 transition-all duration-200 flex items-center justify-between gap-2 border-b border-border/20 last:border-0"
             >
               <div className="min-w-0">
                 <span className="font-mono font-semibold text-sm text-foreground">{r.symbol}</span>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">{r.name}</p>
               </div>
-              <span className="text-[10px] text-muted-foreground shrink-0 bg-secondary px-1.5 py-0.5 rounded">
+              <span className="text-[10px] text-muted-foreground shrink-0 bg-secondary/50 px-2 py-0.5 rounded-full">
                 {r.region}
               </span>
             </button>
@@ -82,7 +80,7 @@ export function StockSearch({ onSelect, className }: StockSearchProps) {
       )}
 
       {open && debouncedQuery && !isLoading && results && results.length === 0 && (
-        <div className="absolute z-50 top-full mt-1 w-full bg-card border border-border rounded-lg shadow-xl p-3 text-center text-sm text-muted-foreground">
+        <div className="absolute z-50 top-full mt-2 w-full glass-strong rounded-2xl p-4 text-center text-sm text-muted-foreground">
           {t('noResults')}
         </div>
       )}
