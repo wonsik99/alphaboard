@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useStockTimeSeries, useStockQuote } from '@/hooks/useStockData';
+import { StockSearch } from '@/components/StockSearch';
 import type { TimeRange } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import {
   ResponsiveContainer,
   AreaChart,
