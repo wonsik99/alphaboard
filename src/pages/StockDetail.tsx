@@ -137,11 +137,11 @@ const StockDetail = () => {
         {quote && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
-              { label: '시가', value: `$${quote.open.toFixed(2)}` },
-              { label: '고가', value: `$${quote.high.toFixed(2)}` },
-              { label: '저가', value: `$${quote.low.toFixed(2)}` },
-              { label: '전일 종가', value: `$${quote.previousClose.toFixed(2)}` },
-              { label: '거래량', value: quote.volume.toLocaleString() },
+              { label: t('open'), value: `$${quote.open.toFixed(2)}` },
+              { label: t('high'), value: `$${quote.high.toFixed(2)}` },
+              { label: t('low'), value: `$${quote.low.toFixed(2)}` },
+              { label: t('prevClose'), value: `$${quote.previousClose.toFixed(2)}` },
+              { label: t('volume'), value: quote.volume.toLocaleString() },
             ].map(item => (
               <Card key={item.label} className="bg-card border-border">
                 <CardContent className="p-3">
