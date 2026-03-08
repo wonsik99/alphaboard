@@ -51,6 +51,16 @@ export function useMarketNews() {
   });
 }
 
+export function useCompanyNews(symbol: string) {
+  return useQuery<NewsArticle[]>({
+    queryKey: ['company-news', symbol],
+    queryFn: () => invokeEdgeFunction(FUNCTION_NAME, { action: 'news', symbol }),
+    enabled: !!symbol,
+    refetchInterval: 300000,
+    staleTime: 120000,
+  });
+}
+
 export function useBatchQuotes(symbols: string[]) {
   return useQuery<StockQuote[]>({
     queryKey: ['batch-quotes', symbols.join(',')],

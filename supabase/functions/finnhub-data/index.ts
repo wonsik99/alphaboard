@@ -147,20 +147,42 @@ Deno.serve(async (req) => {
       }
 
       case 'news': {
-        const today = new Date();
-        const weekAgo = new Date(today.getTime() - 7 * 86400000);
-        const fmt = (d: Date) => d.toISOString().slice(0, 10);
-        const data = await fetchFH('/news', { category: 'general', minId: '0' });
-        const articles = Array.isArray(data) ? data : [];
-        result = articles.slice(0, 15).map((item: Record<string, unknown>) => ({
-          title: item.headline as string,
-          url: item.url as string,
-          source: item.source as string,
-          publishedAt: new Date((item.datetime as number) * 1000).toISOString(),
-          summary: item.summary as string,
-          sentiment: 'neutral',
-          tickers: ((item.related as string) || '').split(',').filter(Boolean).slice(0, 5),
-        }));
+        const category = body.symbol ? undefined : 'general';
+        
+        if (body.symbol) {
+          // Company-specific news
+          const today = new Date();
+          const monthAgo = new Date(today.getTime() - 30 * 86400000);
+          const fmt = (d: Date) => d.toISOString().slice(0, 10);
+          const data = await fetchFH('/company-news', { 
+            symbol: body.symbol, 
+            from: fmt(monthAgo), 
+            to: fmt(today) 
+          });
+          const articles = Array.isArray(data) ? data : [];
+          result = articles.slice(0, 20).map((item: Record<string, unknown>) => ({
+            title: item.headline as string,
+            url: item.url as string,
+            source: item.source as string,
+            publishedAt: new Date((item.datetime as number) * 1000).toISOString(),
+            summary: item.summary as string,
+            sentiment: 'neutral',
+            tickers: [body.symbol!],
+          }));
+        } else {
+          // General market news
+          const data = await fetchFH('/news', { category: 'general', minId: '0' });
+          const articles = Array.isArray(data) ? data : [];
+          result = articles.slice(0, 15).map((item: Record<string, unknown>) => ({
+            title: item.headline as string,
+            url: item.url as string,
+            source: item.source as string,
+            publishedAt: new Date((item.datetime as number) * 1000).toISOString(),
+            summary: item.summary as string,
+            sentiment: 'neutral',
+            tickers: ((item.related as string) || '').split(',').filter(Boolean).slice(0, 5),
+          }));
+        }
         break;
       }
 
