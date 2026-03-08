@@ -64,7 +64,7 @@ const translations = {
     watchlist: 'Watchlist',
     addStock: 'Add stock (e.g. NVDA)',
     emptyWatchlist: 'Add stocks to your watchlist',
-    marketNews: 'Market News',
+    marketNews: 'Watchlist News',
     noNews: 'Unable to load news',
     bullish: 'Bullish',
     bearish: 'Bearish',
