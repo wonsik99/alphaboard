@@ -34,7 +34,7 @@ const StockDetail = () => {
   const [chartType, setChartType] = useState<ChartType>('line');
   const { data: quote, isLoading: quoteLoading } = useStockQuote(symbol || '');
   const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol || '', range);
-  const { data: news } = useMarketNews();
+  const { data: companyNews } = useCompanyNews(symbol || '');
   const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
   const { locale, t } = useI18n();
   const dateLocale = locale === 'ko' ? ko : enUS;
