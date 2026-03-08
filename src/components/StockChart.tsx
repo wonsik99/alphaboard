@@ -21,19 +21,10 @@ const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '1Y'];
 
 export function StockChart() {
   const [symbol, setSymbol] = useState('AAPL');
-  const [searchInput, setSearchInput] = useState('');
   const [range, setRange] = useState<TimeRange>('1M');
 
   const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol, range);
   const { data: quote } = useStockQuote(symbol);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchInput.trim()) {
-      setSymbol(searchInput.trim().toUpperCase());
-      setSearchInput('');
-    }
-  };
 
   const isPositive = quote ? quote.change >= 0 : true;
   const strokeColor = isPositive ? 'hsl(142, 71%, 45%)' : 'hsl(0, 84%, 60%)';
