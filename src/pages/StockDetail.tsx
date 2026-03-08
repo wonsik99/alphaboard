@@ -25,6 +25,7 @@ import {
 } from 'recharts';
 
 const TIME_RANGES: TimeRange[] = ['1D', '1W', '1M', '3M', '1Y'];
+type ChartType = 'line' | 'candle';
 
 const StockDetail = () => {
   const { symbol } = useParams<{ symbol: string }>();
