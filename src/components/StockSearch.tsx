@@ -83,7 +83,7 @@ export function StockSearch({ onSelect, className }: StockSearchProps) {
 
       {open && debouncedQuery && !isLoading && results && results.length === 0 && (
         <div className="absolute z-50 top-full mt-1 w-full bg-card border border-border rounded-lg shadow-xl p-3 text-center text-sm text-muted-foreground">
-          검색 결과가 없습니다
+          {t('noResults')}
         </div>
       )}
     </div>

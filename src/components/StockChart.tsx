@@ -123,7 +123,7 @@ export function StockChart() {
           </ResponsiveContainer>
         ) : (
           <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-            데이터를 불러올 수 없습니다
+            {t('noData')}
           </div>
         )}
       </CardContent>
