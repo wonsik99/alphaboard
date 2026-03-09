@@ -261,23 +261,37 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // No tool calls - now stream the final response
-      break;
-    }
+      // No tool calls - we have the final response, return it directly
+      const finalContent = assistantMessage.content || '';
+      
+      // Build a simple SSE response with the content + watchlist actions
+      const encoder = new TextEncoder();
+      const body = new ReadableStream({
+        start(controller) {
+          if (allWatchlistActions.length > 0) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ watchlistActions: allWatchlistActions })}\n\n`));
+          }
+          // Send the content as a single chunk
+          if (finalContent) {
+            const chunk = {
+              choices: [{ delta: { content: finalContent } }],
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        },
+      });
 
-    // Final streaming response
-    const streamResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: aiMessages,
-        stream: true,
-      }),
-    });
+      return new Response(body, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
+    }
 
     if (!streamResponse.ok) {
       throw new Error(`Stream error: ${streamResponse.status}`);
