@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
           const tsData = avData[tsKey] as Record<string, Record<string, string>>;
           let limit: number;
           switch (range) {
-            case '1D': limit = 1; break;
+            case '1D': limit = 2; break;   // Last 2 trading days for comparison
             case '1W': limit = 5; break;
             case '1M': limit = 22; break;
             case '3M': limit = 66; break;
@@ -142,10 +142,9 @@ Deno.serve(async (req) => {
           }
           parsed = parseTS(tsData, limit);
 
-          // For 1D: if only 1 data point, pad with previous days so chart isn't empty
-          if ((range === '1D' || range === '1W') && parsed.length < 3) {
-            const fallbackLimit = range === '1D' ? 5 : 10;
-            parsed = parseTS(tsData, fallbackLimit);
+          // Ensure minimum data points for a meaningful chart
+          if (range === '1W' && parsed.length < 3) {
+            parsed = parseTS(tsData, 10);
           }
         }
         result = parsed;
