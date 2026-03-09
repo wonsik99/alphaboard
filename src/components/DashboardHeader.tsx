@@ -18,7 +18,7 @@ export function DashboardHeader() {
           <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
             <BarChart3 className="h-5 w-5 text-primary-foreground" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">StockPulse</h1>
+          <h1 className="text-xl font-semibold tracking-tight">AlphaBoard</h1>
         </div>
         <div className="flex items-center gap-2">
           <p className="text-xs text-muted-foreground hidden sm:block font-medium mr-1">
