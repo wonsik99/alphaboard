@@ -293,34 +293,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!streamResponse.ok) {
-      throw new Error(`Stream error: ${streamResponse.status}`);
-    }
-
-    // Create a transform stream to inject watchlist actions at the end
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    
-    const transformStream = new TransformStream({
-      start(controller) {
-        // Send watchlist actions as first event if any
-        if (allWatchlistActions.length > 0) {
-          const actionEvent = `data: ${JSON.stringify({ watchlistActions: allWatchlistActions })}\n\n`;
-          controller.enqueue(encoder.encode(actionEvent));
-        }
-      },
-      transform(chunk, controller) {
-        controller.enqueue(chunk);
-      },
-    });
-
-    return new Response(streamResponse.body?.pipeThrough(transformStream), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
+    // This point is only reached if maxIterations exhausted
+    return new Response(JSON.stringify({ error: 'server_error', message: 'Too many tool calls' }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
