@@ -261,52 +261,41 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // No tool calls - now stream the final response
-      break;
+      // No tool calls - we have the final response, return it directly
+      const finalContent = assistantMessage.content || '';
+      
+      // Build a simple SSE response with the content + watchlist actions
+      const encoder = new TextEncoder();
+      const body = new ReadableStream({
+        start(controller) {
+          if (allWatchlistActions.length > 0) {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ watchlistActions: allWatchlistActions })}\n\n`));
+          }
+          // Send the content as a single chunk
+          if (finalContent) {
+            const chunk = {
+              choices: [{ delta: { content: finalContent } }],
+            };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+          }
+          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+          controller.close();
+        },
+      });
+
+      return new Response(body, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+        },
+      });
     }
 
-    // Final streaming response
-    const streamResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: aiMessages,
-        stream: true,
-      }),
-    });
-
-    if (!streamResponse.ok) {
-      throw new Error(`Stream error: ${streamResponse.status}`);
-    }
-
-    // Create a transform stream to inject watchlist actions at the end
-    const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    
-    const transformStream = new TransformStream({
-      start(controller) {
-        // Send watchlist actions as first event if any
-        if (allWatchlistActions.length > 0) {
-          const actionEvent = `data: ${JSON.stringify({ watchlistActions: allWatchlistActions })}\n\n`;
-          controller.enqueue(encoder.encode(actionEvent));
-        }
-      },
-      transform(chunk, controller) {
-        controller.enqueue(chunk);
-      },
-    });
-
-    return new Response(streamResponse.body?.pipeThrough(transformStream), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      },
+    // This point is only reached if maxIterations exhausted
+    return new Response(JSON.stringify({ error: 'server_error', message: 'Too many tool calls' }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
