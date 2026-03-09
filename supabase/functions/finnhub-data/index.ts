@@ -94,77 +94,61 @@ Deno.serve(async (req) => {
         const sym = body.symbol!;
         const range = body.range || '1M';
 
-        // Use Finnhub candles for 1D and 1W (intraday/hourly data)
-        if (range === '1D' || range === '1W') {
-          const { resolution, fromDays } = resolutionForRange(range);
-          const now = Math.floor(Date.now() / 1000);
-          const from = now - fromDays * 86400;
-          const candles = await fetchFH('/stock/candle', {
-            symbol: sym,
-            resolution,
-            from: String(from),
-            to: String(now),
-          });
-
-          if (candles.s === 'ok' && candles.t) {
-            result = candles.t.map((ts: number, i: number) => {
-              const d = new Date(ts * 1000);
-              const dateStr = range === '1D'
-                ? `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-                : `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:00`;
-              return {
-                date: dateStr,
-                open: candles.o[i],
-                high: candles.h[i],
-                low: candles.l[i],
-                close: candles.c[i],
-                volume: candles.v[i],
-              };
-            });
-          } else {
-            result = [];
+        // All ranges use Alpha Vantage daily/weekly data
+        // (Finnhub free plan doesn't support intraday candles)
+        async function fetchAV(params: Record<string, string>): Promise<Record<string, unknown>> {
+          const url = new URL(AV_BASE_URL);
+          for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+          const res = await fetch(url.toString());
+          const data = await res.json() as Record<string, unknown>;
+          if (data['Note'] || data['Information']) {
+            console.log('AV rate limited, waiting 12s and retrying...');
+            await new Promise(r => setTimeout(r, 12000));
+            const res2 = await fetch(url.toString());
+            return res2.json() as Promise<Record<string, unknown>>;
           }
-        } else {
-          // Use Alpha Vantage for 1M, 3M, 1Y (daily/weekly)
-          async function fetchAV(params: Record<string, string>): Promise<Record<string, unknown>> {
-            const url = new URL(AV_BASE_URL);
-            for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-            const res = await fetch(url.toString());
-            const data = await res.json() as Record<string, unknown>;
-            if (data['Note'] || data['Information']) {
-              console.log('AV rate limited, waiting 12s and retrying...');
-              await new Promise(r => setTimeout(r, 12000));
-              const res2 = await fetch(url.toString());
-              return res2.json() as Promise<Record<string, unknown>>;
-            }
-            return data;
-          }
-
-          function parseTS(ts: Record<string, Record<string, string>>, limit: number) {
-            return Object.entries(ts)
-              .slice(0, limit)
-              .map(([date, values]) => ({
-                date: date.slice(5),
-                open: parseFloat(values['1. open']),
-                high: parseFloat(values['2. high']),
-                low: parseFloat(values['3. low']),
-                close: parseFloat(values['4. close']),
-                volume: parseInt(values['5. volume']),
-              }))
-              .reverse();
-          }
-
-          const fn = range === '1Y' ? 'TIME_SERIES_WEEKLY' : 'TIME_SERIES_DAILY';
-          const avData = await fetchAV({ function: fn, symbol: sym, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY });
-          const tsKey = Object.keys(avData).find(k => k.includes('Time Series'));
-
-          let parsed: Array<{date: string; open: number; high: number; low: number; close: number; volume: number}> = [];
-          if (tsKey) {
-            const limit = range === '1M' ? 22 : range === '3M' ? 66 : 52;
-            parsed = parseTS(avData[tsKey], limit);
-          }
-          result = parsed;
+          return data;
         }
+
+        function parseTS(ts: Record<string, Record<string, string>>, limit: number, dateFormat: 'short' | 'full' = 'short') {
+          return Object.entries(ts)
+            .slice(0, limit)
+            .map(([date, values]) => ({
+              date: dateFormat === 'full' ? date : date.slice(5),
+              open: parseFloat(values['1. open']),
+              high: parseFloat(values['2. high']),
+              low: parseFloat(values['3. low']),
+              close: parseFloat(values['4. close']),
+              volume: parseInt(values['5. volume']),
+            }))
+            .reverse();
+        }
+
+        const fn = range === '1Y' ? 'TIME_SERIES_WEEKLY' : 'TIME_SERIES_DAILY';
+        const avData = await fetchAV({ function: fn, symbol: sym, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY });
+        const tsKey = Object.keys(avData).find(k => k.includes('Time Series'));
+
+        let parsed: Array<{date: string; open: number; high: number; low: number; close: number; volume: number}> = [];
+        if (tsKey) {
+          const tsData = avData[tsKey] as Record<string, Record<string, string>>;
+          let limit: number;
+          switch (range) {
+            case '1D': limit = 1; break;
+            case '1W': limit = 5; break;
+            case '1M': limit = 22; break;
+            case '3M': limit = 66; break;
+            case '1Y': limit = 52; break;
+            default: limit = 22;
+          }
+          parsed = parseTS(tsData, limit);
+
+          // For 1D: if only 1 data point, pad with previous days so chart isn't empty
+          if ((range === '1D' || range === '1W') && parsed.length < 3) {
+            const fallbackLimit = range === '1D' ? 5 : 10;
+            parsed = parseTS(tsData, fallbackLimit);
+          }
+        }
+        result = parsed;
         break;
       }
 
