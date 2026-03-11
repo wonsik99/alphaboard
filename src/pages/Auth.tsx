@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { BarChart3, Loader2, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/hooks/useI18n';
-import { lovable } from '@/integrations/lovable/index';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -120,8 +120,11 @@ export default function Auth() {
             variant="outline"
             className="w-full rounded-xl gap-2"
             onClick={async () => {
-              const { error } = await lovable.auth.signInWithOAuth('google', {
-                redirect_uri: window.location.origin,
+              const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                  redirectTo: window.location.origin,
+                },
               });
               if (error) {
                 toast({ title: 'Error', description: String(error), variant: 'destructive' });

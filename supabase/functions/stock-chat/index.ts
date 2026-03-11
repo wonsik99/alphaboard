@@ -5,9 +5,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY') || '';
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
+const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') || 'gpt-4.1-mini';
 const FINNHUB_KEY = Deno.env.get('FINNHUB_API_KEY') || '';
 const FINNHUB_BASE = 'https://finnhub.io/api/v1';
+
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content?: string | null;
+  tool_call_id?: string;
+  tool_calls?: Array<{
+    id: string;
+    type: 'function';
+    function: {
+      name: string;
+      arguments: string;
+    };
+  }>;
+}
 
 // Tool definitions for the AI agent
 const tools = [
@@ -178,17 +193,17 @@ Deno.serve(async (req) => {
   try {
     const { messages, watchlist } = await req.json();
     
-    if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
+    if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
 
     // Build context-aware system message
     const watchlistContext = watchlist?.length > 0
       ? `\n\nUser's current watchlist: ${watchlist.map((w: { symbol: string; name: string }) => `${w.symbol} (${w.name})`).join(', ')}`
       : '\n\nUser has no stocks in their watchlist.';
 
-    const systemMessage = { role: 'system', content: SYSTEM_PROMPT + watchlistContext };
+    const systemMessage: ChatMessage = { role: 'system', content: SYSTEM_PROMPT + watchlistContext };
 
     // Initial AI call with tools - handle tool calls first (non-streaming)
-    let aiMessages = [systemMessage, ...messages];
+    let aiMessages: ChatMessage[] = [systemMessage, ...messages];
     let maxIterations = 5;
     const allWatchlistActions: unknown[] = [];
 
@@ -196,44 +211,46 @@ Deno.serve(async (req) => {
     while (maxIterations > 0) {
       maxIterations--;
       
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: OPENAI_MODEL,
           messages: aiMessages,
           tools,
+          tool_choice: 'auto',
           stream: false,
         }),
       });
 
+      const data = await response.json().catch(() => null);
+
       if (!response.ok) {
         const status = response.status;
-        const text = await response.text();
-        console.error('AI gateway error:', status, text);
+        const message = data?.error?.message || `AI error: ${status}`;
+        const code = data?.error?.code || data?.error?.type || '';
+        console.error('OpenAI API error:', status, data);
         
+        if (status === 429 && String(code).includes('insufficient_quota')) {
+          return new Response(JSON.stringify({ error: 'payment_required', message: 'OpenAI 크레딧 또는 사용 한도가 부족합니다.' }), {
+            status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         if (status === 429) {
           return new Response(JSON.stringify({ error: 'rate_limit', message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }), {
             status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
-        if (status === 402) {
-          return new Response(JSON.stringify({ error: 'payment_required', message: 'AI 크레딧이 부족합니다.' }), {
-            status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-        throw new Error(`AI error: ${status}`);
+        throw new Error(message);
       }
-
-      const data = await response.json();
       const choice = data.choices?.[0];
       
       if (!choice) throw new Error('No response from AI');
 
-      const assistantMessage = choice.message;
+      const assistantMessage = choice.message as ChatMessage;
       aiMessages.push(assistantMessage);
 
       // Check if AI wants to call tools
