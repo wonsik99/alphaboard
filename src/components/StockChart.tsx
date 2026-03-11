@@ -5,6 +5,7 @@ import { useStockTimeSeries, useStockQuote } from '@/hooks/useStockData';
 import { StockSearch } from '@/components/StockSearch';
 import { useI18n } from '@/hooks/useI18n';
 import type { TimeRange } from '@/lib/types';
+import { formatChartAxisLabel, formatChartPrice, formatChartTooltipLabel, getChartDirection } from '@/lib/chart';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp, TrendingDown, BarChart3, LineChart } from 'lucide-react';
@@ -26,14 +27,15 @@ export function StockChart() {
   const [symbol, setSymbol] = useState('AAPL');
   const [range, setRange] = useState<TimeRange>('1M');
   const [chartType, setChartType] = useState<ChartType>('line');
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
 
   const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol, range);
   const { data: quote } = useStockQuote(symbol);
 
-  const isPositive = quote ? quote.change >= 0 : true;
-  const strokeColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
-  const fillColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
+  const quoteIsPositive = quote ? quote.change >= 0 : true;
+  const chartIsPositive = getChartDirection(timeseries, quote?.change ?? 0);
+  const strokeColor = chartIsPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
+  const fillColor = chartIsPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
 
   return (
     <Card>
@@ -51,22 +53,22 @@ export function StockChart() {
                 <span className="text-2xl font-semibold font-mono tracking-tight">
                   ${quote.price.toFixed(2)}
                 </span>
-                <span className={cn('flex items-center gap-1 text-sm font-mono font-medium', isPositive ? 'text-gain' : 'text-loss')}>
-                  <div className={cn('flex items-center justify-center h-5 w-5 rounded-full', isPositive ? 'bg-gain/15' : 'bg-loss/15')}>
-                    {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                <span className={cn('flex items-center gap-1 text-sm font-mono font-medium', quoteIsPositive ? 'text-gain' : 'text-loss')}>
+                  <div className={cn('flex items-center justify-center h-5 w-5 rounded-full', quoteIsPositive ? 'bg-gain/15' : 'bg-loss/15')}>
+                    {quoteIsPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                   </div>
-                  {isPositive ? '+' : ''}{quote.change.toFixed(2)} ({isPositive ? '+' : ''}{quote.changePercent.toFixed(2)}%)
+                  {quoteIsPositive ? '+' : ''}{quote.change.toFixed(2)} ({quoteIsPositive ? '+' : ''}{quote.changePercent.toFixed(2)}%)
                 </span>
               </div>
             )}
           </div>
           <StockSearch
             onSelect={(sym) => setSymbol(sym)}
-            className="w-72"
+            className="w-full sm:w-72"
           />
         </div>
-        <div className="flex items-center gap-3 mt-3">
-          <div className="flex gap-1">
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-1">
             {TIME_RANGES.map(r => (
               <Button
                 key={r}
@@ -109,7 +111,7 @@ export function StockChart() {
           <Skeleton className="h-[300px] w-full rounded-xl" />
         ) : timeseries && timeseries.length > 0 ? (
           chartType === 'candle' ? (
-            <CandlestickChart data={timeseries} height={300} />
+            <CandlestickChart data={timeseries} range={range} locale={locale} height={300} emptyLabel={t('noData')} />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={timeseries}>
@@ -122,16 +124,18 @@ export function StockChart() {
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis
                   dataKey="date"
+                  tickFormatter={(value: string) => formatChartAxisLabel(value, range, locale)}
                   tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
+                  minTickGap={24}
                 />
                 <YAxis
                   domain={['auto', 'auto']}
                   tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={v => `$${v}`}
+                  tickFormatter={(value: number) => formatChartPrice(value)}
                 />
                 <Tooltip
                   contentStyle={{
@@ -146,7 +150,8 @@ export function StockChart() {
                   }}
                   labelStyle={{ color: 'hsl(var(--foreground))' }}
                   itemStyle={{ color: strokeColor }}
-                  formatter={(value: number) => [`$${value.toFixed(2)}`, t('close')]}
+                  labelFormatter={(label) => formatChartTooltipLabel(String(label), range, locale)}
+                  formatter={(value: number) => [formatChartPrice(value), t('close')]}
                 />
                 <Area
                   type="monotone"

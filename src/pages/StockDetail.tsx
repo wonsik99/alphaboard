@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useStockQuote, useStockTimeSeries, useCompanyNews } from '@/hooks/useStockData';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useI18n } from '@/hooks/useI18n';
+import { formatChartAxisLabel, formatChartPrice, formatChartTooltipLabel, getChartDirection } from '@/lib/chart';
 import type { TimeRange } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, Star, TrendingUp, TrendingDown, ExternalLink, LineChart, BarChart3 } from 'lucide-react';
@@ -40,9 +41,10 @@ const StockDetail = () => {
   const dateLocale = locale === 'ko' ? ko : enUS;
 
   const inWatchlist = symbol ? isInWatchlist(symbol) : false;
-  const isPositive = quote ? quote.change >= 0 : true;
-  const strokeColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
-  const fillColor = isPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
+  const quoteIsPositive = quote ? quote.change >= 0 : true;
+  const chartIsPositive = getChartDirection(timeseries, quote?.change ?? 0);
+  const strokeColor = chartIsPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
+  const fillColor = chartIsPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
 
   const relatedNews = companyNews?.slice(0, 10);
 
@@ -81,12 +83,12 @@ const StockDetail = () => {
         ) : quote && (
           <div>
             <p className="text-4xl font-semibold font-mono tracking-tight">${quote.price.toFixed(2)}</p>
-            <div className={cn('flex items-center gap-2 mt-1.5', isPositive ? 'text-gain' : 'text-loss')}>
-              <div className={cn('flex items-center justify-center h-6 w-6 rounded-full', isPositive ? 'bg-gain/15' : 'bg-loss/15')}>
-                {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+            <div className={cn('flex items-center gap-2 mt-1.5', quoteIsPositive ? 'text-gain' : 'text-loss')}>
+              <div className={cn('flex items-center justify-center h-6 w-6 rounded-full', quoteIsPositive ? 'bg-gain/15' : 'bg-loss/15')}>
+                {quoteIsPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
               </div>
               <span className="text-lg font-mono font-medium">
-                {isPositive ? '+' : ''}{quote.change.toFixed(2)} ({isPositive ? '+' : ''}{quote.changePercent.toFixed(2)}%)
+                {quoteIsPositive ? '+' : ''}{quote.change.toFixed(2)} ({quoteIsPositive ? '+' : ''}{quote.changePercent.toFixed(2)}%)
               </span>
             </div>
           </div>
@@ -94,8 +96,8 @@ const StockDetail = () => {
 
         <Card>
           <CardHeader className="pb-2">
-            <div className="flex items-center gap-3">
-              <div className="flex gap-1">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap gap-1">
                 {TIME_RANGES.map(r => (
                   <Button
                     key={r}
@@ -135,7 +137,7 @@ const StockDetail = () => {
               <Skeleton className="h-[350px] w-full rounded-xl" />
             ) : timeseries && timeseries.length > 0 ? (
               chartType === 'candle' ? (
-                <CandlestickChart data={timeseries} height={350} />
+                <CandlestickChart data={timeseries} range={range} locale={locale} height={350} emptyLabel={t('noChartData')} />
               ) : (
                 <ResponsiveContainer width="100%" height={350}>
                   <AreaChart data={timeseries}>
@@ -146,8 +148,21 @@ const StockDetail = () => {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis dataKey="date" tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} tickLine={false} axisLine={false} />
-                    <YAxis domain={['auto', 'auto']} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={v => `$${v}`} />
+                    <XAxis
+                      dataKey="date"
+                      tickFormatter={(value: string) => formatChartAxisLabel(value, range, locale)}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      minTickGap={24}
+                    />
+                    <YAxis
+                      domain={['auto', 'auto']}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(value: number) => formatChartPrice(value)}
+                    />
                     <Tooltip
                       contentStyle={{
                         background: 'hsl(var(--glass-bg))',
@@ -160,7 +175,8 @@ const StockDetail = () => {
                         boxShadow: 'var(--glass-shadow)',
                       }}
                       labelStyle={{ color: 'hsl(var(--foreground))' }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, t('close')]}
+                      labelFormatter={(label) => formatChartTooltipLabel(String(label), range, locale)}
+                      formatter={(value: number) => [formatChartPrice(value), t('close')]}
                     />
                     <Area type="monotone" dataKey="close" stroke={strokeColor} strokeWidth={2} fill="url(#detailGradient)" />
                   </AreaChart>

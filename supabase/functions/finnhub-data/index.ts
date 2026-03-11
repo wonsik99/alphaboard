@@ -18,6 +18,26 @@ interface RequestBody {
   keywords?: string;
 }
 
+interface ChartPoint {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+interface FinnhubQuoteResponse {
+  c?: number;
+  d?: number;
+  dp?: number;
+  h?: number;
+  l?: number;
+  o?: number;
+  pc?: number;
+  t?: number;
+}
+
 async function fetchFH(path: string, params: Record<string, string> = {}) {
   const url = new URL(`${BASE_URL}${path}`);
   url.searchParams.set('token', FINNHUB_KEY);
@@ -29,15 +49,135 @@ async function fetchFH(path: string, params: Record<string, string> = {}) {
   return res.json();
 }
 
-function resolutionForRange(range: string): { resolution: string; fromDays: number } {
+function timeSeriesConfig(range: string) {
   switch (range) {
-    case '1D': return { resolution: '5', fromDays: 1 };
-    case '1W': return { resolution: '60', fromDays: 7 };
-    case '1M': return { resolution: 'D', fromDays: 30 };
-    case '3M': return { resolution: 'D', fromDays: 90 };
-    case '1Y': return { resolution: 'W', fromDays: 365 };
-    default: return { resolution: 'D', fromDays: 30 };
+    case '1D':
+      return { fn: 'TIME_SERIES_INTRADAY', interval: '15min', limit: 26, intraday: true };
+    case '1W':
+      return { fn: 'TIME_SERIES_INTRADAY', interval: '60min', limit: 35, intraday: true };
+    case '1M':
+      return { fn: 'TIME_SERIES_DAILY', interval: null, limit: 22, intraday: false };
+    case '3M':
+      return { fn: 'TIME_SERIES_DAILY', interval: null, limit: 66, intraday: false };
+    case '1Y':
+      return { fn: 'TIME_SERIES_WEEKLY', interval: null, limit: 52, intraday: false };
+    default:
+      return { fn: 'TIME_SERIES_DAILY', interval: null, limit: 22, intraday: false };
   }
+}
+
+function parseTimeSeries(
+  timeSeries: Record<string, Record<string, string>>,
+  limit: number,
+): ChartPoint[] {
+  return Object.entries(timeSeries)
+    .slice(0, limit)
+    .map(([date, values]) => ({
+      date,
+      open: parseFloat(values['1. open']),
+      high: parseFloat(values['2. high']),
+      low: parseFloat(values['3. low']),
+      close: parseFloat(values['4. close']),
+      volume: parseInt(values['5. volume']),
+    }))
+    .reverse();
+}
+
+function formatInNewYork(unixSeconds: number, intraday: boolean) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    ...(intraday
+      ? {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hourCycle: 'h23' as const,
+        }
+      : {}),
+  }).formatToParts(new Date(unixSeconds * 1000));
+
+  const get = (type: string) => parts.find((part) => part.type === type)?.value || '';
+  const date = `${get('year')}-${get('month')}-${get('day')}`;
+
+  if (!intraday) return date;
+
+  return `${date} ${get('hour')}:${get('minute')}:${get('second')}`;
+}
+
+function reconcileLivePoint(
+  points: ChartPoint[],
+  quote: FinnhubQuoteResponse | null,
+  range: string,
+  limit: number,
+): ChartPoint[] {
+  if (!points.length || !quote?.c || !quote.t) return points;
+
+  const lastPoint = points[points.length - 1];
+  const liveDate = formatInNewYork(quote.t, range === '1D' || range === '1W');
+
+  if (range === '1Y') {
+    const liveWeeklyPoint: ChartPoint = {
+      date: liveDate,
+      open: lastPoint.open,
+      high: quote.h ? Math.max(lastPoint.high, quote.h) : Math.max(lastPoint.high, quote.c),
+      low: quote.l ? Math.min(lastPoint.low, quote.l) : Math.min(lastPoint.low, quote.c),
+      close: quote.c,
+      volume: lastPoint.volume,
+    };
+
+    return [...points.slice(0, -1), liveWeeklyPoint];
+  }
+
+  if (range === '1D' || range === '1W') {
+    if (lastPoint.date === liveDate) {
+      const liveIntradayPoint: ChartPoint = {
+        ...lastPoint,
+        date: liveDate,
+        high: Math.max(lastPoint.high, quote.c),
+        low: Math.min(lastPoint.low, quote.c),
+        close: quote.c,
+      };
+
+      return [...points.slice(0, -1), liveIntradayPoint];
+    }
+
+    const syntheticIntradayPoint: ChartPoint = {
+      date: liveDate,
+      open: lastPoint.close,
+      high: Math.max(lastPoint.close, quote.c),
+      low: Math.min(lastPoint.close, quote.c),
+      close: quote.c,
+      volume: 0,
+    };
+
+    if (liveDate > lastPoint.date) {
+      return [...points, syntheticIntradayPoint].slice(-limit);
+    }
+
+    return points;
+  }
+
+  const liveDailyPoint: ChartPoint = {
+    date: liveDate,
+    open: quote.o || lastPoint.close,
+    high: quote.h ? Math.max(quote.h, quote.c) : quote.c,
+    low: quote.l ? Math.min(quote.l, quote.c) : quote.c,
+    close: quote.c,
+    volume: lastPoint.volume,
+  };
+
+  if (lastPoint.date === liveDate) {
+    return [...points.slice(0, -1), liveDailyPoint];
+  }
+
+  if (liveDate > lastPoint.date) {
+    return [...points, liveDailyPoint].slice(-limit);
+  }
+
+  return points;
 }
 
 Deno.serve(async (req) => {
@@ -93,9 +233,8 @@ Deno.serve(async (req) => {
       case 'timeseries': {
         const sym = body.symbol!;
         const range = body.range || '1M';
+        const { fn, interval, limit, intraday } = timeSeriesConfig(range);
 
-        // All ranges use Alpha Vantage daily/weekly data
-        // (Finnhub free plan doesn't support intraday candles)
         async function fetchAV(params: Record<string, string>): Promise<Record<string, unknown>> {
           const url = new URL(AV_BASE_URL);
           for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
@@ -110,44 +249,46 @@ Deno.serve(async (req) => {
           return data;
         }
 
-        function parseTS(ts: Record<string, Record<string, string>>, limit: number, dateFormat: 'short' | 'full' = 'short') {
-          return Object.entries(ts)
-            .slice(0, limit)
-            .map(([date, values]) => ({
-              date: dateFormat === 'full' ? date : date.slice(5),
-              open: parseFloat(values['1. open']),
-              high: parseFloat(values['2. high']),
-              low: parseFloat(values['3. low']),
-              close: parseFloat(values['4. close']),
-              volume: parseInt(values['5. volume']),
-            }))
-            .reverse();
+        const avParams: Record<string, string> = {
+          function: fn,
+          symbol: sym,
+          outputsize: 'compact',
+          apikey: ALPHA_VANTAGE_KEY,
+        };
+
+        if (interval) {
+          avParams.interval = interval;
         }
 
-        const fn = range === '1Y' ? 'TIME_SERIES_WEEKLY' : 'TIME_SERIES_DAILY';
-        const avData = await fetchAV({ function: fn, symbol: sym, outputsize: 'compact', apikey: ALPHA_VANTAGE_KEY });
+        const [avData, liveQuote] = await Promise.all([
+          fetchAV(avParams),
+          fetchFH('/quote', { symbol: sym }).catch(() => null),
+        ]);
         const tsKey = Object.keys(avData).find(k => k.includes('Time Series'));
 
-        let parsed: Array<{date: string; open: number; high: number; low: number; close: number; volume: number}> = [];
+        let parsed: ChartPoint[] = [];
         if (tsKey) {
           const tsData = avData[tsKey] as Record<string, Record<string, string>>;
-          let limit: number;
-          switch (range) {
-            case '1D': limit = 2; break;   // Last 2 trading days for comparison
-            case '1W': limit = 5; break;
-            case '1M': limit = 22; break;
-            case '3M': limit = 66; break;
-            case '1Y': limit = 52; break;
-            default: limit = 22;
-          }
-          parsed = parseTS(tsData, limit);
+          parsed = parseTimeSeries(tsData, limit);
 
-          // Ensure minimum data points for a meaningful chart
-          if (range === '1W' && parsed.length < 3) {
-            parsed = parseTS(tsData, 10);
+          if (intraday && parsed.length < Math.min(limit, 4)) {
+            const fallbackData = await fetchAV({
+              function: 'TIME_SERIES_DAILY',
+              symbol: sym,
+              outputsize: 'compact',
+              apikey: ALPHA_VANTAGE_KEY,
+            });
+            const fallbackKey = Object.keys(fallbackData).find(k => k.includes('Time Series'));
+            if (fallbackKey) {
+              parsed = parseTimeSeries(
+                fallbackData[fallbackKey] as Record<string, Record<string, string>>,
+                range === '1D' ? 2 : 5,
+              );
+            }
           }
         }
-        result = parsed;
+
+        result = reconcileLivePoint(parsed, liveQuote as FinnhubQuoteResponse | null, range, limit);
         break;
       }
 

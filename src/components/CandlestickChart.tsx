@@ -1,12 +1,23 @@
 import { useMemo } from 'react';
+import { formatChartAxisLabel, formatChartPrice, formatChartTooltipLabel } from '@/lib/chart';
 import type { StockTimeSeriesPoint } from '@/lib/types';
+import type { TimeRange } from '@/lib/types';
 
 interface CandlestickChartProps {
   data: StockTimeSeriesPoint[];
+  range: TimeRange;
+  locale: 'ko' | 'en';
   height?: number;
+  emptyLabel?: string;
 }
 
-export function CandlestickChart({ data, height = 300 }: CandlestickChartProps) {
+export function CandlestickChart({
+  data,
+  range,
+  locale,
+  height = 300,
+  emptyLabel = 'No data',
+}: CandlestickChartProps) {
   const marginLeft = 55;
   const marginRight = 10;
   const marginTop = 10;
@@ -23,7 +34,6 @@ export function CandlestickChart({ data, height = 300 }: CandlestickChartProps) 
     const yMin = minPrice - pricePad;
     const yMax = maxPrice + pricePad;
 
-    const chartW = 100; // percent-based, we'll use viewBox
     const chartH = height - marginTop - marginBottom;
 
     const barWidth = Math.max(2, Math.min(12, (600 - marginLeft - marginRight) / data.length * 0.6));
@@ -72,7 +82,7 @@ export function CandlestickChart({ data, height = 300 }: CandlestickChartProps) 
             fill="transparent"
             className="cursor-crosshair"
           >
-            <title>{`${d.date}\nO: $${d.open.toFixed(2)}  H: $${d.high.toFixed(2)}\nL: $${d.low.toFixed(2)}  C: $${d.close.toFixed(2)}`}</title>
+            <title>{`${formatChartTooltipLabel(d.date, range, locale)}\nO: ${formatChartPrice(d.open)}  H: ${formatChartPrice(d.high)}\nL: ${formatChartPrice(d.low)}  C: ${formatChartPrice(d.close)}`}</title>
           </rect>
         </g>
       );
@@ -95,7 +105,7 @@ export function CandlestickChart({ data, height = 300 }: CandlestickChartProps) 
               fontSize={10}
               fontFamily="JetBrains Mono, monospace"
             >
-              ${tick.toFixed(0)}
+              {formatChartPrice(tick)}
             </text>
           </g>
         ))}
@@ -113,19 +123,19 @@ export function CandlestickChart({ data, height = 300 }: CandlestickChartProps) 
               fontSize={10}
               fontFamily="JetBrains Mono, monospace"
             >
-              {d.date}
+              {formatChartAxisLabel(d.date, range, locale)}
             </text>
           );
         })}
         {candles}
       </>
     );
-  }, [data, height]);
+  }, [data, height, locale, range]);
 
   if (!data.length) {
     return (
       <div style={{ height }} className="flex items-center justify-center text-muted-foreground">
-        No data
+        {emptyLabel}
       </div>
     );
   }
