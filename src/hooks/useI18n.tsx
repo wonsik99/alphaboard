@@ -204,7 +204,7 @@ const I18nContext = createContext<I18nContextType | null>(null);
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocale] = useState<Locale>(() => {
     const saved = localStorage.getItem('locale');
-    return (saved === 'en' || saved === 'ko') ? saved : 'ko';
+    return (saved === 'en' || saved === 'ko') ? saved : 'en';
   });
 
   const handleSetLocale = useCallback((l: Locale) => {
