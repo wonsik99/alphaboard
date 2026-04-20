@@ -61,7 +61,7 @@ export default function Auth() {
               <BarChart3 className="h-7 w-7 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl">StockPulse</CardTitle>
+          <CardTitle className="text-2xl">AlphaBoard</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
             {isLogin ? t('loginSubtitle') : t('signupSubtitle')}
           </p>

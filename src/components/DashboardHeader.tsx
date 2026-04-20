@@ -1,15 +1,17 @@
-import { BarChart3, Globe, LogIn, LogOut, Sun, Moon } from 'lucide-react';
+import { BarChart3, Globe, LogIn, LogOut, Sun, Moon, Briefcase, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useI18n } from '@/hooks/useI18n';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 export function DashboardHeader() {
   const { locale, setLocale, t } = useI18n();
   const { user, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
 
   return (
     <header className="glass-strong sticky top-0 z-50 border-b-0">
@@ -19,6 +21,32 @@ export function DashboardHeader() {
             <BarChart3 className="h-5 w-5 text-primary-foreground" />
           </div>
           <h1 className="text-xl font-semibold tracking-tight">AlphaBoard</h1>
+          <nav className="hidden sm:flex items-center gap-1 ml-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                'h-8 px-3 text-xs gap-1.5 rounded-full transition-all',
+                location.pathname === '/' && 'bg-secondary/60 text-foreground'
+              )}
+              onClick={() => navigate('/')}
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              {t('dashboard')}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(
+                'h-8 px-3 text-xs gap-1.5 rounded-full transition-all',
+                location.pathname === '/portfolio' && 'bg-secondary/60 text-foreground'
+              )}
+              onClick={() => navigate('/portfolio')}
+            >
+              <Briefcase className="h-3.5 w-3.5" />
+              {t('portfolio')}
+            </Button>
+          </nav>
         </div>
         <div className="flex items-center gap-2">
           <p className="text-xs text-muted-foreground hidden sm:block font-medium mr-1">

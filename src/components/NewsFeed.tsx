@@ -1,19 +1,23 @@
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWatchlistNews, useMarketNews } from '@/hooks/useStockData';
+import { useBatchNewsAnalysis } from '@/hooks/useNewsAnalysis';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useI18n } from '@/hooks/useI18n';
 import { cn } from '@/lib/utils';
-import { Newspaper, ExternalLink } from 'lucide-react';
+import { Newspaper, ExternalLink, Brain } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ko, enUS } from 'date-fns/locale';
 
 export function NewsFeed() {
+  const navigate = useNavigate();
   const { watchlist } = useWatchlist();
   const symbols = watchlist.map(w => w.symbol);
   const { data: watchlistNews, isLoading: wlLoading } = useWatchlistNews(symbols);
   const { data: generalNews, isLoading: gnLoading } = useMarketNews();
+  const { data: sentimentData } = useBatchNewsAnalysis(symbols);
   const { locale, t } = useI18n();
   const dateLocale = locale === 'ko' ? ko : enUS;
 
@@ -32,6 +36,40 @@ export function NewsFeed() {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-0 space-y-1">
+        {/* AI Sentiment Overview */}
+        {sentimentData && sentimentData.length > 0 && (
+          <div className="mb-4 p-3 rounded-xl bg-secondary/30 space-y-2">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Brain className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-medium text-primary">{t('aiAnalysis')}</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {sentimentData.map(s => {
+                const isPos = s.sentimentScore > 0.2;
+                const isNeg = s.sentimentScore < -0.2;
+                return (
+                  <button
+                    key={s.symbol}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background/60 hover:bg-background transition-colors text-left"
+                    onClick={() => navigate(`/stock/${s.symbol}`)}
+                  >
+                    <span className="text-xs font-semibold">{s.symbol}</span>
+                    <span
+                      className={cn(
+                        'text-[10px] font-mono px-1.5 py-0.5 rounded-full',
+                        isPos && 'bg-gain/15 text-gain',
+                        isNeg && 'bg-loss/15 text-loss',
+                        !isPos && !isNeg && 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      {s.sentimentScore > 0 ? '+' : ''}{s.sentimentScore.toFixed(2)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {isLoading ? (
           Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="space-y-2 pb-3 border-b border-border/30 last:border-0">

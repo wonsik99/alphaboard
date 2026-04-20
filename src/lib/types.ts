@@ -43,6 +43,16 @@ export interface WatchlistItem {
   name: string;
 }
 
+export interface PortfolioHolding {
+  id: string;
+  symbol: string;
+  name: string;
+  purchasePrice: number;
+  quantity: number;
+  purchasedAt: string;
+  notes?: string | null;
+}
+
 export interface SearchResult {
   symbol: string;
   name: string;

@@ -9,6 +9,8 @@ const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') || '';
 const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') || 'gpt-4.1-mini';
 const FINNHUB_KEY = Deno.env.get('FINNHUB_API_KEY') || '';
 const FINNHUB_BASE = 'https://finnhub.io/api/v1';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -102,7 +104,38 @@ const tools = [
         additionalProperties: false,
       }
     }
-  }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_portfolio_summary",
+      description: "Get the user's portfolio summary including total value, total invested, gain/loss, and per-holding performance. Uses real-time prices.",
+      parameters: { type: "object", properties: {}, additionalProperties: false }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_stock_sentiment",
+      description: "Get AI news sentiment analysis for a specific stock, including recent sentiment trend from the database.",
+      parameters: {
+        type: "object",
+        properties: {
+          symbol: { type: "string", description: "Stock ticker symbol" }
+        },
+        required: ["symbol"],
+        additionalProperties: false,
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_worst_sentiment",
+      description: "Find the stock with the worst (most negative/bearish) sentiment score among the user's portfolio holdings.",
+      parameters: { type: "object", properties: {}, additionalProperties: false }
+    }
+  },
 ];
 
 async function fetchFinnhub(path: string, params: Record<string, string> = {}) {
@@ -114,8 +147,32 @@ async function fetchFinnhub(path: string, params: Record<string, string> = {}) {
   return res.json();
 }
 
+interface PortfolioItem {
+  symbol: string;
+  name: string;
+  quantity: number;
+  purchasePrice: number;
+}
+
+async function querySupabase(path: string, params: Record<string, string> = {}): Promise<unknown> {
+  const url = new URL(`${SUPABASE_URL}/rest/v1${path}`);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const res = await fetch(url.toString(), {
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+    },
+  });
+  if (!res.ok) throw new Error(`Supabase ${res.status}`);
+  return res.json();
+}
+
 // Execute tool calls
-async function executeTool(name: string, args: Record<string, unknown>): Promise<string> {
+async function executeTool(
+  name: string,
+  args: Record<string, unknown>,
+  portfolio?: PortfolioItem[],
+): Promise<string> {
   switch (name) {
     case 'get_stock_quote': {
       const sym = (args.symbol as string).toUpperCase();
@@ -169,18 +226,103 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
       );
       return JSON.stringify(quotes);
     }
+    case 'get_portfolio_summary': {
+      if (!portfolio || portfolio.length === 0) {
+        return JSON.stringify({ message: 'User has no portfolio holdings.' });
+      }
+      const symbols = portfolio.map(p => p.symbol);
+      const quotes = await Promise.all(
+        symbols.map(s =>
+          fetchFinnhub('/quote', { symbol: s })
+            .then(q => ({ symbol: s, price: q.c, change: q.d, changePercent: q.dp }))
+            .catch(() => ({ symbol: s, price: 0, change: 0, changePercent: 0 }))
+        )
+      );
+      const holdings = portfolio.map(p => {
+        const q = quotes.find(q => q.symbol === p.symbol);
+        const currentPrice = q?.price || p.purchasePrice;
+        const marketValue = currentPrice * p.quantity;
+        const costBasis = p.purchasePrice * p.quantity;
+        const gain = marketValue - costBasis;
+        const gainPercent = costBasis > 0 ? (gain / costBasis) * 100 : 0;
+        return {
+          symbol: p.symbol, name: p.name, quantity: p.quantity,
+          purchasePrice: p.purchasePrice, currentPrice,
+          marketValue, costBasis, gain, gainPercent: +gainPercent.toFixed(2),
+          dayChange: q?.change || 0, dayChangePercent: q?.changePercent || 0,
+        };
+      });
+      const totalValue = holdings.reduce((s, h) => s + h.marketValue, 0);
+      const totalInvested = holdings.reduce((s, h) => s + h.costBasis, 0);
+      const totalGain = totalValue - totalInvested;
+      const totalGainPercent = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
+      return JSON.stringify({
+        totalValue: +totalValue.toFixed(2),
+        totalInvested: +totalInvested.toFixed(2),
+        totalGain: +totalGain.toFixed(2),
+        totalGainPercent: +totalGainPercent.toFixed(2),
+        holdingCount: holdings.length,
+        holdings,
+      });
+    }
+    case 'get_stock_sentiment': {
+      const sym = (args.symbol as string).toUpperCase();
+      const records = await querySupabase('/sentiment_records', {
+        symbol: `eq.${sym}`,
+        order: 'recorded_at.desc',
+        limit: '7',
+      }) as Array<{ score: number; article_count: number; summary: string | null; recorded_at: string }>;
+      if (!records || records.length === 0) {
+        return JSON.stringify({ symbol: sym, message: 'No sentiment data available for this symbol.' });
+      }
+      const latest = records[0];
+      return JSON.stringify({
+        symbol: sym,
+        latestScore: latest.score,
+        latestSummary: latest.summary,
+        articleCount: latest.article_count,
+        date: latest.recorded_at,
+        trend: records.map(r => ({ date: r.recorded_at, score: r.score })),
+      });
+    }
+    case 'get_worst_sentiment': {
+      if (!portfolio || portfolio.length === 0) {
+        return JSON.stringify({ message: 'User has no portfolio holdings.' });
+      }
+      const symbols = portfolio.map(p => p.symbol);
+      const allRecords = await Promise.all(
+        symbols.map(async sym => {
+          const records = await querySupabase('/sentiment_records', {
+            symbol: `eq.${sym}`,
+            order: 'recorded_at.desc',
+            limit: '1',
+          }) as Array<{ score: number; summary: string | null; recorded_at: string; article_count: number }>;
+          return records.length > 0
+            ? { symbol: sym, ...records[0] }
+            : { symbol: sym, score: 0, summary: null, recorded_at: '', article_count: 0 };
+        })
+      );
+      const sorted = allRecords.sort((a, b) => a.score - b.score);
+      return JSON.stringify({
+        worst: sorted[0],
+        all: sorted.map(r => ({ symbol: r.symbol, score: r.score, summary: r.summary })),
+      });
+    }
     default:
       return JSON.stringify({ error: 'Unknown tool' });
   }
 }
 
-const SYSTEM_PROMPT = `You are a helpful US stock market assistant embedded in a stock dashboard app. You can look up real-time stock quotes, search for stocks, get company news, manage the user's watchlist, and compare stocks.
+const SYSTEM_PROMPT = `You are a helpful US stock market assistant embedded in a stock portfolio intelligence dashboard. You can look up real-time stock quotes, search for stocks, get company news, manage the user's watchlist, compare stocks, analyze portfolio performance, and check AI-powered news sentiment.
 
 Rules:
 - Always use tools to get real data. Never make up stock prices.
 - Respond in the same language as the user (Korean or English).
 - When showing stock data, format it nicely with markdown tables or lists.
 - For watchlist management, always confirm the action to the user.
+- When discussing portfolio, use get_portfolio_summary for real-time data.
+- Use get_stock_sentiment to check AI sentiment for specific stocks.
+- Use get_worst_sentiment to find the most negatively-rated portfolio holding.
 - Include a disclaimer that this is not investment advice when giving opinions.
 - Be concise but informative.
 - Use emoji sparingly for visual clarity (📈📉⚠️).`;
@@ -191,16 +333,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { messages, watchlist } = await req.json();
-    
+    const { messages, watchlist, portfolio } = await req.json();
+
     if (!OPENAI_API_KEY) throw new Error('OPENAI_API_KEY not configured');
+
+    const portfolioItems: PortfolioItem[] = (portfolio || []).map((p: PortfolioItem) => ({
+      symbol: p.symbol, name: p.name, quantity: p.quantity, purchasePrice: p.purchasePrice,
+    }));
 
     // Build context-aware system message
     const watchlistContext = watchlist?.length > 0
       ? `\n\nUser's current watchlist: ${watchlist.map((w: { symbol: string; name: string }) => `${w.symbol} (${w.name})`).join(', ')}`
       : '\n\nUser has no stocks in their watchlist.';
 
-    const systemMessage: ChatMessage = { role: 'system', content: SYSTEM_PROMPT + watchlistContext };
+    const portfolioContext = portfolioItems.length > 0
+      ? `\n\nUser's portfolio holdings: ${portfolioItems.map(p => `${p.symbol} (${p.name}) — ${p.quantity} shares @ $${p.purchasePrice}`).join(', ')}`
+      : '\n\nUser has no portfolio holdings.';
+
+    const systemMessage: ChatMessage = { role: 'system', content: SYSTEM_PROMPT + watchlistContext + portfolioContext };
 
     // Initial AI call with tools - handle tool calls first (non-streaming)
     let aiMessages: ChatMessage[] = [systemMessage, ...messages];
@@ -259,7 +409,7 @@ Deno.serve(async (req) => {
           assistantMessage.tool_calls.map(async (tc: { id: string; function: { name: string; arguments: string } }) => {
             const args = JSON.parse(tc.function.arguments);
             console.log(`Tool call: ${tc.function.name}`, args);
-            const result = await executeTool(tc.function.name, args);
+            const result = await executeTool(tc.function.name, args, portfolioItems);
             
             // Collect watchlist actions
             try {

@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useStockQuote, useStockTimeSeries, useCompanyNews } from '@/hooks/useStockData';
+import { useNewsAnalysis, useRefreshAnalysis } from '@/hooks/useNewsAnalysis';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useI18n } from '@/hooks/useI18n';
 import { formatChartAxisLabel, formatChartPrice, formatChartTooltipLabel, getChartDirection } from '@/lib/chart';
 import type { TimeRange } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, Star, TrendingUp, TrendingDown, ExternalLink, LineChart, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Star, TrendingUp, TrendingDown, ExternalLink, LineChart, BarChart3, Brain, RefreshCw, Loader2 } from 'lucide-react';
+import { SentimentChart } from '@/components/SentimentChart';
 import { formatDistanceToNow } from 'date-fns';
 import { ko, enUS } from 'date-fns/locale';
 import { CandlestickChart } from '@/components/CandlestickChart';
@@ -36,6 +38,8 @@ const StockDetail = () => {
   const { data: quote, isLoading: quoteLoading } = useStockQuote(symbol || '');
   const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol || '', range);
   const { data: companyNews } = useCompanyNews(symbol || '');
+  const { data: newsAnalysis, isLoading: analysisLoading } = useNewsAnalysis(symbol || '');
+  const refreshAnalysis = useRefreshAnalysis();
   const { isInWatchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
   const { locale, t } = useI18n();
   const dateLocale = locale === 'ko' ? ko : enUS;
@@ -206,6 +210,88 @@ const StockDetail = () => {
             ))}
           </div>
         )}
+
+        {/* AI Analysis Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center">
+                    <Brain className="h-4 w-4 text-primary" />
+                  </div>
+                  {t('aiAnalysis')}
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 rounded-full text-xs"
+                  disabled={refreshAnalysis.isPending}
+                  onClick={() => symbol && refreshAnalysis.mutate(symbol)}
+                >
+                  {refreshAnalysis.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-3.5 w-3.5" />
+                  )}
+                  {t('refreshAnalysis')}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {analysisLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-full rounded-full" />
+                  <Skeleton className="h-4 w-3/4 rounded-full" />
+                  <Skeleton className="h-8 w-24 rounded-full mt-2" />
+                </div>
+              ) : newsAnalysis ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-foreground leading-relaxed">{newsAnalysis.summary}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs text-muted-foreground">{t('veryBearish')}</span>
+                        <span className="text-xs text-muted-foreground">{t('veryBullish')}</span>
+                      </div>
+                      <div className="h-2.5 bg-muted rounded-full overflow-hidden relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-loss via-muted-foreground/20 to-gain rounded-full" />
+                        <div
+                          className="absolute top-0 h-full w-3 bg-foreground rounded-full shadow-sm transition-all"
+                          style={{ left: `calc(${((newsAnalysis.sentimentScore + 1) / 2) * 100}% - 6px)` }}
+                        />
+                      </div>
+                    </div>
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        'text-sm font-mono px-3 py-1 rounded-full border-0',
+                        newsAnalysis.sentimentScore > 0.2 && 'bg-gain/15 text-gain',
+                        newsAnalysis.sentimentScore < -0.2 && 'bg-loss/15 text-loss',
+                      )}
+                    >
+                      {newsAnalysis.sentimentScore > 0 ? '+' : ''}{newsAnalysis.sentimentScore.toFixed(2)}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {newsAnalysis.articleCount} {locale === 'ko' ? '개 기사 분석' : 'articles analyzed'}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-4 text-center">{t('noSentimentData')}</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">{t('sentimentTrend')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SentimentChart symbol={symbol || ''} height={200} />
+            </CardContent>
+          </Card>
+        </div>
 
         {relatedNews && relatedNews.length > 0 && (
           <Card>

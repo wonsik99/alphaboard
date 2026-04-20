@@ -59,6 +59,72 @@ export type Database = {
         }
         Relationships: []
       }
+      portfolios: {
+        Row: {
+          id: string
+          user_id: string
+          symbol: string
+          name: string
+          purchase_price: number
+          quantity: number
+          purchased_at: string
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          symbol: string
+          name: string
+          purchase_price: number
+          quantity: number
+          purchased_at?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          symbol?: string
+          name?: string
+          purchase_price?: number
+          quantity?: number
+          purchased_at?: string
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
+      sentiment_records: {
+        Row: {
+          id: string
+          symbol: string
+          score: number
+          article_count: number
+          summary: string | null
+          recorded_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          symbol: string
+          score: number
+          article_count?: number
+          summary?: string | null
+          recorded_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          symbol?: string
+          score?: number
+          article_count?: number
+          summary?: string | null
+          recorded_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -5,6 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import ReactMarkdown from 'react-markdown';
 import { supabase } from '@/integrations/supabase/client';
 import { useWatchlist } from '@/hooks/useWatchlist';
+import { usePortfolio } from '@/hooks/usePortfolio';
 import { useI18n } from '@/hooks/useI18n';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,7 @@ export function StockChatbot() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { watchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
+  const { portfolio } = usePortfolio();
   const { locale } = useI18n();
   const { toast } = useToast();
 
@@ -86,6 +88,12 @@ export function StockChatbot() {
           body: JSON.stringify({
             messages: chatMessages,
             watchlist: watchlist.map(w => ({ symbol: w.symbol, name: w.name })),
+            portfolio: portfolio.map(p => ({
+              symbol: p.symbol,
+              name: p.name,
+              quantity: p.quantity,
+              purchasePrice: p.purchasePrice,
+            })),
           }),
         }
       );
@@ -175,8 +183,18 @@ export function StockChatbot() {
   };
 
   const quickActions = locale === 'ko'
-    ? ['내 관심종목 현재 시세 알려줘', 'NVDA 최근 뉴스 요약해줘', '애플과 마이크로소프트 비교해줘']
-    : ['Show my watchlist quotes', 'Summarize NVDA news', 'Compare AAPL vs MSFT'];
+    ? [
+        '내 포트폴리오 수익률 알려줘',
+        '내 포트폴리오에서 가장 부정적인 뉴스가 있는 종목은?',
+        '내 관심종목 현재 시세 알려줘',
+        'NVDA 최근 뉴스 감성 분석해줘',
+      ]
+    : [
+        'Show my portfolio performance',
+        'Which stock in my portfolio has the worst news?',
+        'Show my watchlist quotes',
+        'Analyze NVDA news sentiment',
+      ];
 
   return (
     <>
