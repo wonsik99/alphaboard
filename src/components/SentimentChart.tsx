@@ -19,7 +19,7 @@ interface SentimentChartProps {
 
 export function SentimentChart({ symbol, height = 200 }: SentimentChartProps) {
   const { data: history, isLoading } = useSentimentHistory(symbol);
-  const { locale } = useI18n();
+  const { t, locale } = useI18n();
 
   if (isLoading) {
     return <Skeleton className="w-full rounded-xl" style={{ height }} />;
@@ -31,7 +31,7 @@ export function SentimentChart({ symbol, height = 200 }: SentimentChartProps) {
         style={{ height }}
         className="flex items-center justify-center text-sm text-muted-foreground"
       >
-        {locale === 'ko' ? '감성 분석 데이터가 없습니다' : 'No sentiment data available'}
+        {t('noSentimentData')}
       </div>
     );
   }
@@ -49,10 +49,6 @@ export function SentimentChart({ symbol, height = 200 }: SentimentChartProps) {
           <linearGradient id={`sentGradPos-${symbol}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor="hsl(152, 69%, 40%)" stopOpacity={0.3} />
             <stop offset="95%" stopColor="hsl(152, 69%, 40%)" stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id={`sentGradNeg-${symbol}`} x1="0" y1="1" x2="0" y2="0">
-            <stop offset="5%" stopColor="hsl(0, 72%, 55%)" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="hsl(0, 72%, 55%)" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid

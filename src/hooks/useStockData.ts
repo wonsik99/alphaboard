@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { MarketIndex, StockQuote, StockTimeSeriesPoint, NewsArticle, TimeRange, SearchResult } from '@/lib/types';
 
-// Use Finnhub as primary, Alpha Vantage kept in stock-data function as backup
 const FUNCTION_NAME = 'finnhub-data';
 
 async function invokeEdgeFunction<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
