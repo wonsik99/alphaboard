@@ -2,6 +2,8 @@
 
 Real-time U.S. stock market dashboard with portfolio management and AI-powered analysis.
 
+**Live Demo:** [alphaboard-git-main-algrthm-3474s-projects.vercel.app](https://alphaboard-git-main-algrthm-3474s-projects.vercel.app)
+
 ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Backend-3FCF8E?logo=supabase&logoColor=white)
