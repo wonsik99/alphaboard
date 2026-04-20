@@ -9,7 +9,7 @@ import { useStockQuote, useStockTimeSeries, useCompanyNews } from '@/hooks/useSt
 import { useNewsAnalysis, useRefreshAnalysis } from '@/hooks/useNewsAnalysis';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useI18n } from '@/hooks/useI18n';
-import { formatChartAxisLabel, formatChartPrice, formatChartTooltipLabel, getChartDirection } from '@/lib/chart';
+import { buildChartTicks, formatChartAxisLabel, formatChartPrice, formatChartTooltipLabel, getChartDirection, padIntradayTimeline } from '@/lib/chart';
 import type { TimeRange } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, Star, TrendingUp, TrendingDown, ExternalLink, LineChart, BarChart3, Brain, RefreshCw, Loader2 } from 'lucide-react';
@@ -36,7 +36,12 @@ const StockDetail = () => {
   const [range, setRange] = useState<TimeRange>('1M');
   const [chartType, setChartType] = useState<ChartType>('line');
   const { data: quote, isLoading: quoteLoading } = useStockQuote(symbol || '');
-  const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol || '', range);
+  const {
+    data: timeseries,
+    isLoading: tsLoading,
+    isError: tsError,
+    refetch: refetchTimeseries,
+  } = useStockTimeSeries(symbol || '', range);
   const { data: companyNews } = useCompanyNews(symbol || '');
   const { data: newsAnalysis, isLoading: analysisLoading } = useNewsAnalysis(symbol || '');
   const refreshAnalysis = useRefreshAnalysis();
@@ -45,10 +50,12 @@ const StockDetail = () => {
   const dateLocale = locale === 'ko' ? ko : enUS;
 
   const inWatchlist = symbol ? isInWatchlist(symbol) : false;
+  const chartData = padIntradayTimeline(timeseries, range);
   const quoteIsPositive = quote ? quote.change >= 0 : true;
-  const chartIsPositive = getChartDirection(timeseries, quote?.change ?? 0);
+  const chartIsPositive = getChartDirection(chartData, quote?.change ?? 0);
   const strokeColor = chartIsPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
   const fillColor = chartIsPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
+  const xAxisTicks = buildChartTicks(chartData, range);
 
   const relatedNews = companyNews?.slice(0, 10);
 
@@ -56,7 +63,7 @@ const StockDetail = () => {
     <div className="min-h-screen bg-background">
       <DashboardHeader />
       <main className="container mx-auto px-4 py-6 space-y-6">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 animate-enter stagger-1">
           <Button variant="ghost" size="icon" className="rounded-full" onClick={() => navigate('/')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -64,7 +71,7 @@ const StockDetail = () => {
             <Skeleton className="h-8 w-48 rounded-full" />
           ) : (
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-semibold">{symbol}</h1>
+              <h1 className="text-2xl font-display font-semibold">{symbol}</h1>
               <span className="text-muted-foreground">{quote?.name}</span>
               <Button
                 variant={inWatchlist ? 'default' : 'outline'}
@@ -85,7 +92,7 @@ const StockDetail = () => {
         {quoteLoading ? (
           <Skeleton className="h-16 w-48 rounded-2xl" />
         ) : quote && (
-          <div>
+          <div className="animate-enter stagger-2">
             <p className="text-4xl font-semibold font-mono tracking-tight">${quote.price.toFixed(2)}</p>
             <div className={cn('flex items-center gap-2 mt-1.5', quoteIsPositive ? 'text-gain' : 'text-loss')}>
               <div className={cn('flex items-center justify-center h-6 w-6 rounded-full', quoteIsPositive ? 'bg-gain/15' : 'bg-loss/15')}>
@@ -98,7 +105,7 @@ const StockDetail = () => {
           </div>
         )}
 
-        <Card>
+        <Card className="animate-enter stagger-3">
           <CardHeader className="pb-2">
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex flex-wrap gap-1">
@@ -139,12 +146,24 @@ const StockDetail = () => {
           <CardContent>
             {tsLoading ? (
               <Skeleton className="h-[350px] w-full rounded-xl" />
-            ) : timeseries && timeseries.length > 0 ? (
+            ) : tsError ? (
+              <div className="h-[350px] flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                <span className="text-sm">{t('chartLoadError')}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => refetchTimeseries()}
+                >
+                  {t('retry')}
+                </Button>
+              </div>
+            ) : chartData && chartData.length > 0 ? (
               chartType === 'candle' ? (
-                <CandlestickChart data={timeseries} range={range} locale={locale} height={350} emptyLabel={t('noChartData')} />
+                <CandlestickChart data={chartData} range={range} locale={locale} height={350} emptyLabel={t('noChartData')} />
               ) : (
                 <ResponsiveContainer width="100%" height={350}>
-                  <AreaChart data={timeseries}>
+                  <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="detailGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={fillColor} stopOpacity={0.25} />
@@ -159,6 +178,7 @@ const StockDetail = () => {
                       tickLine={false}
                       axisLine={false}
                       minTickGap={24}
+                      ticks={xAxisTicks}
                     />
                     <YAxis
                       domain={['auto', 'auto']}
@@ -180,9 +200,17 @@ const StockDetail = () => {
                       }}
                       labelStyle={{ color: 'hsl(var(--foreground))' }}
                       labelFormatter={(label) => formatChartTooltipLabel(String(label), range, locale)}
-                      formatter={(value: number) => [formatChartPrice(value), t('close')]}
+                      formatter={(value: number | null) => [formatChartPrice(value), t('close')]}
                     />
-                    <Area type="monotone" dataKey="close" stroke={strokeColor} strokeWidth={2} fill="url(#detailGradient)" />
+                    <Area
+                      type="monotone"
+                      dataKey="close"
+                      stroke={strokeColor}
+                      strokeWidth={2}
+                      fill="url(#detailGradient)"
+                      connectNulls={false}
+                      isAnimationActive={false}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               )
@@ -193,13 +221,20 @@ const StockDetail = () => {
         </Card>
 
         {quote && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 animate-enter stagger-4">
             {[
               { label: t('open'), value: `$${quote.open.toFixed(2)}` },
               { label: t('high'), value: `$${quote.high.toFixed(2)}` },
               { label: t('low'), value: `$${quote.low.toFixed(2)}` },
               { label: t('prevClose'), value: `$${quote.previousClose.toFixed(2)}` },
-              { label: t('volume'), value: quote.volume.toLocaleString() },
+              {
+                label: t('volume'),
+                // Finnhub's basic quote doesn't include volume; the edge
+                // function fills it from Yahoo when available. If that fetch
+                // fails or the source returns a bogus sub-100 value, show a
+                // dash instead of a misleading tiny number like "6".
+                value: quote.volume > 100 ? quote.volume.toLocaleString() : '—',
+              },
             ].map(item => (
               <Card key={item.label}>
                 <CardContent className="p-4">
@@ -212,12 +247,12 @@ const StockDetail = () => {
         )}
 
         {/* AI Analysis Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-enter stagger-5">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center">
+                  <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
                     <Brain className="h-4 w-4 text-primary" />
                   </div>
                   {t('aiAnalysis')}

@@ -202,24 +202,26 @@ export function StockChatbot() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "fixed bottom-6 right-6 z-50 rounded-full p-4 shadow-lg transition-all duration-300",
-          "bg-primary text-primary-foreground hover:scale-105 active:scale-95",
+          "fixed bottom-6 right-6 z-50 rounded-2xl p-3.5 transition-all duration-300",
+          "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground hover:scale-110 active:scale-95",
+          "shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40",
           isOpen && "rotate-90 opacity-0 pointer-events-none"
         )}
       >
-        <MessageCircle className="h-6 w-6" />
+        <span className="absolute inset-0 rounded-2xl bg-primary/50 animate-ping opacity-25 pointer-events-none" />
+        <MessageCircle className="h-5 w-5 relative" />
       </button>
 
       {/* Chat panel */}
       <div
         className={cn(
-          "fixed bottom-6 right-6 z-50 flex flex-col rounded-2xl border border-border shadow-xl transition-all duration-300 overflow-hidden",
-          "bg-card w-[380px] h-[560px]",
-          isOpen ? "scale-100 opacity-100" : "scale-90 opacity-0 pointer-events-none"
+          "fixed bottom-6 right-6 z-50 flex flex-col rounded-2xl shadow-2xl transition-all duration-300 overflow-hidden",
+          "bg-card w-[380px] h-[560px] border border-border",
+          isOpen ? "scale-100 opacity-100 glow-primary" : "scale-90 opacity-0 pointer-events-none"
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-primary/5">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent">
           <div className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
             <span className="font-semibold text-sm text-foreground">
@@ -246,7 +248,10 @@ export function StockChatbot() {
                   <button
                     key={i}
                     onClick={() => { setInput(q); inputRef.current?.focus(); }}
-                    className="text-xs text-left px-3 py-2 rounded-lg bg-muted hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+                    className={cn(
+                      "text-xs text-left px-3 py-2 rounded-lg bg-muted hover:bg-accent transition-all duration-200 text-muted-foreground hover:text-foreground hover:translate-x-1 animate-enter-fast",
+                      `stagger-${i + 1}`
+                    )}
                   >
                     {q}
                   </button>

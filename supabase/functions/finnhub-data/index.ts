@@ -6,9 +6,13 @@ const corsHeaders = {
 };
 
 const FINNHUB_KEY = Deno.env.get('FINNHUB_API_KEY') || '';
-const ALPHA_VANTAGE_KEY = Deno.env.get('ALPHA_VANTAGE_API_KEY') || 'demo';
 const BASE_URL = 'https://finnhub.io/api/v1';
-const AV_BASE_URL = 'https://www.alphavantage.co/query';
+
+// Yahoo Finance is picky about User-Agent. Use a realistic desktop browser UA
+// so the chart endpoint returns full data instead of 401/429.
+const YAHOO_UA =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+  '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 interface RequestBody {
   action: string;
@@ -49,38 +53,88 @@ async function fetchFH(path: string, params: Record<string, string> = {}) {
   return res.json();
 }
 
-function timeSeriesConfig(range: string) {
+interface RangeConfig {
+  yahooRange: string;
+  yahooInterval: string;
+  limit: number;
+  intraday: boolean;
+}
+
+function rangeConfig(range: string): RangeConfig {
   switch (range) {
     case '1D':
-      return { fn: 'TIME_SERIES_INTRADAY', interval: '15min', limit: 26, intraday: true };
+      // 6.5h trading day, 5-min bars -> 78 points
+      return { yahooRange: '1d', yahooInterval: '5m', limit: 78, intraday: true };
     case '1W':
-      return { fn: 'TIME_SERIES_INTRADAY', interval: '60min', limit: 35, intraday: true };
+      // 5 trading days, 30-min bars -> ~65 points
+      return { yahooRange: '5d', yahooInterval: '30m', limit: 65, intraday: true };
     case '1M':
-      return { fn: 'TIME_SERIES_DAILY', interval: null, limit: 22, intraday: false };
+      return { yahooRange: '1mo', yahooInterval: '1d', limit: 22, intraday: false };
     case '3M':
-      return { fn: 'TIME_SERIES_DAILY', interval: null, limit: 66, intraday: false };
+      return { yahooRange: '3mo', yahooInterval: '1d', limit: 66, intraday: false };
     case '1Y':
-      return { fn: 'TIME_SERIES_WEEKLY', interval: null, limit: 52, intraday: false };
+      // Weekly bars keep the chart readable (52 points instead of ~252)
+      return { yahooRange: '1y', yahooInterval: '1wk', limit: 52, intraday: false };
     default:
-      return { fn: 'TIME_SERIES_DAILY', interval: null, limit: 22, intraday: false };
+      return { yahooRange: '1mo', yahooInterval: '1d', limit: 22, intraday: false };
   }
 }
 
-function parseTimeSeries(
-  timeSeries: Record<string, Record<string, string>>,
-  limit: number,
-): ChartPoint[] {
-  return Object.entries(timeSeries)
-    .slice(0, limit)
-    .map(([date, values]) => ({
-      date,
-      open: parseFloat(values['1. open']),
-      high: parseFloat(values['2. high']),
-      low: parseFloat(values['3. low']),
-      close: parseFloat(values['4. close']),
-      volume: parseInt(values['5. volume']),
+async function fetchYahooChart(
+  symbol: string,
+  yahooRange: string,
+  yahooInterval: string,
+): Promise<ChartPoint[]> {
+  const url =
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
+    `?range=${yahooRange}&interval=${yahooInterval}&includePrePost=false`;
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': YAHOO_UA,
+      Accept: 'application/json',
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
+  });
+  if (!res.ok) throw new Error(`Yahoo ${res.status}`);
+
+  const data = await res.json();
+  const result = data?.chart?.result?.[0];
+  if (!result?.timestamp?.length) return [];
+
+  const ts: number[] = result.timestamp;
+  const q = result.indicators?.quote?.[0] || {};
+  const isIntraday = /[mh]/.test(yahooInterval); // 5m, 15m, 30m, 60m, 1h, ...
+
+  return ts
+    .map((t: number, i: number): ChartPoint => ({
+      date: formatInNewYork(t, isIntraday),
+      open: q.open?.[i] ?? 0,
+      high: q.high?.[i] ?? 0,
+      low: q.low?.[i] ?? 0,
+      close: q.close?.[i] ?? 0,
+      volume: q.volume?.[i] ?? 0,
     }))
-    .reverse();
+    .filter((p: ChartPoint) => p.close > 0);
+}
+
+/**
+ * Fetch intraday candles with a weekend/holiday fallback.
+ * When `range=1d` is requested outside regular trading days, Yahoo can return
+ * zero candles. In that case we fetch the last 5 days and keep only the most
+ * recent trading day so the chart is never empty.
+ */
+async function fetchIntraday(symbol: string, config: RangeConfig): Promise<ChartPoint[]> {
+  let candles = await fetchYahooChart(symbol, config.yahooRange, config.yahooInterval);
+
+  if (candles.length === 0 && config.yahooRange === '1d') {
+    const fallback = await fetchYahooChart(symbol, '5d', config.yahooInterval);
+    if (fallback.length > 0) {
+      const lastTradingDay = fallback[fallback.length - 1].date.slice(0, 10);
+      candles = fallback.filter((c) => c.date.startsWith(lastTradingDay));
+    }
+  }
+
+  return candles.slice(-config.limit);
 }
 
 function formatInNewYork(unixSeconds: number, intraday: boolean) {
@@ -119,8 +173,10 @@ function reconcileLivePoint(
   const liveDate = formatInNewYork(quote.t, range === '1D' || range === '1W');
 
   if (range === '1Y') {
+    // Keep the weekly bar's original date so spacing on the X-axis stays even.
+    // Only the OHLC values are updated with the live quote.
     const liveWeeklyPoint: ChartPoint = {
-      date: liveDate,
+      date: lastPoint.date,
       open: lastPoint.open,
       high: quote.h ? Math.max(lastPoint.high, quote.h) : Math.max(lastPoint.high, quote.c),
       low: quote.l ? Math.min(lastPoint.low, quote.l) : Math.min(lastPoint.low, quote.c),
@@ -211,17 +267,24 @@ Deno.serve(async (req) => {
 
       case 'quote': {
         const sym = body.symbol!;
-        const [q, profile] = await Promise.all([
+        // Finnhub `/quote` returns price info but no volume. Pull the latest
+        // daily bar from Yahoo to surface a realistic volume number. The
+        // 5d/1d range gives us a handful of recent sessions and we pick the
+        // most recent one so weekends/holidays still show the last trading
+        // day's volume instead of zero.
+        const [q, profile, yahooDaily] = await Promise.all([
           fetchFH('/quote', { symbol: sym }),
           fetchFH('/stock/profile2', { symbol: sym }).catch(() => null),
+          fetchYahooChart(sym, '5d', '1d').catch(() => [] as ChartPoint[]),
         ]);
+        const lastDaily = yahooDaily[yahooDaily.length - 1];
         result = {
           symbol: sym,
           name: profile?.name || sym,
           price: q.c || 0,
           change: q.d || 0,
           changePercent: q.dp || 0,
-          volume: q.v || 0, // Finnhub doesn't have volume in quote, but we try
+          volume: lastDaily?.volume || 0,
           high: q.h || 0,
           low: q.l || 0,
           open: q.o || 0,
@@ -233,62 +296,33 @@ Deno.serve(async (req) => {
       case 'timeseries': {
         const sym = body.symbol!;
         const range = body.range || '1M';
-        const { fn, interval, limit, intraday } = timeSeriesConfig(range);
+        const config = rangeConfig(range);
 
-        async function fetchAV(params: Record<string, string>): Promise<Record<string, unknown>> {
-          const url = new URL(AV_BASE_URL);
-          for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-          const res = await fetch(url.toString());
-          const data = await res.json() as Record<string, unknown>;
-          if (data['Note'] || data['Information']) {
-            console.log('AV rate limited, waiting 12s and retrying...');
-            await new Promise(r => setTimeout(r, 12000));
-            const res2 = await fetch(url.toString());
-            return res2.json() as Promise<Record<string, unknown>>;
-          }
-          return data;
-        }
-
-        const avParams: Record<string, string> = {
-          function: fn,
-          symbol: sym,
-          outputsize: 'compact',
-          apikey: ALPHA_VANTAGE_KEY,
-        };
-
-        if (interval) {
-          avParams.interval = interval;
-        }
-
-        const [avData, liveQuote] = await Promise.all([
-          fetchAV(avParams),
+        const [rawPoints, liveQuote] = await Promise.all([
+          config.intraday
+            ? fetchIntraday(sym, config)
+            : fetchYahooChart(sym, config.yahooRange, config.yahooInterval).then((pts) =>
+                pts.slice(-config.limit),
+              ),
           fetchFH('/quote', { symbol: sym }).catch(() => null),
         ]);
-        const tsKey = Object.keys(avData).find(k => k.includes('Time Series'));
 
-        let parsed: ChartPoint[] = [];
-        if (tsKey) {
-          const tsData = avData[tsKey] as Record<string, Record<string, string>>;
-          parsed = parseTimeSeries(tsData, limit);
-
-          if (intraday && parsed.length < Math.min(limit, 4)) {
-            const fallbackData = await fetchAV({
-              function: 'TIME_SERIES_DAILY',
-              symbol: sym,
-              outputsize: 'compact',
-              apikey: ALPHA_VANTAGE_KEY,
-            });
-            const fallbackKey = Object.keys(fallbackData).find(k => k.includes('Time Series'));
-            if (fallbackKey) {
-              parsed = parseTimeSeries(
-                fallbackData[fallbackKey] as Record<string, Record<string, string>>,
-                range === '1D' ? 2 : 5,
-              );
-            }
-          }
+        if (rawPoints.length === 0) {
+          // Yahoo failed AND intraday fallback found nothing. Surface an
+          // explicit error so the client can show a proper message instead of
+          // silently rendering an empty chart.
+          return new Response(
+            JSON.stringify({ error: 'no-data', message: `No chart data for ${sym}` }),
+            { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          );
         }
 
-        result = reconcileLivePoint(parsed, liveQuote as FinnhubQuoteResponse | null, range, limit);
+        result = reconcileLivePoint(
+          rawPoints,
+          liveQuote as FinnhubQuoteResponse | null,
+          range,
+          config.limit,
+        );
         break;
       }
 

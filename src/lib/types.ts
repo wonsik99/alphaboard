@@ -21,10 +21,14 @@ export interface StockQuote {
 
 export interface StockTimeSeriesPoint {
   date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
+  // OHLC values may be null for padded bars that represent future trading
+  // slots (e.g. after the current time on the 1D chart). Recharts skips null
+  // values, leaving visible whitespace for the not-yet-traded portion of the
+  // day.
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
   volume: number;
 }
 

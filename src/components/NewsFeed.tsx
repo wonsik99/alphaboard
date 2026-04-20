@@ -28,9 +28,9 @@ export function NewsFeed() {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center">
-            <Newspaper className="h-4 w-4 text-primary" />
+        <CardTitle className="text-base flex items-center gap-2">
+          <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+            <Newspaper className="h-3.5 w-3.5 text-primary" />
           </div>
           {t('marketNews')}
         </CardTitle>
@@ -85,7 +85,10 @@ export function NewsFeed() {
               href={article.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block pb-3 border-b border-border/30 last:border-0 hover:bg-secondary/30 -mx-2 px-3 py-2.5 rounded-xl transition-all duration-200 group"
+              className={cn(
+                "block pb-3 border-b border-border/30 last:border-0 hover:bg-secondary/30 -mx-2 px-3 py-2.5 rounded-xl transition-all duration-200 group animate-enter-fast",
+                i < 8 && `stagger-${i + 1}`
+              )}
             >
               <div className="flex items-start justify-between gap-2">
                 <h4 className="text-sm font-medium leading-snug group-hover:text-primary transition-colors line-clamp-2">

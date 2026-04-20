@@ -85,7 +85,7 @@ export function usePortfolio() {
   }, [user]);
 
   const addHolding = useCallback(
-    async (holding: Omit<PortfolioHolding, 'id'>) => {
+    async (holding: Omit<PortfolioHolding, 'id'>): Promise<{ error: Error | null }> => {
       if (user) {
         const { data, error } = await supabase
           .from('portfolios')
@@ -100,26 +100,35 @@ export function usePortfolio() {
           })
           .select('id, symbol, name, purchase_price, quantity, purchased_at, notes')
           .single();
-        if (!error && data) {
+        if (error) {
+          console.error('Failed to add holding:', error);
+          return { error: new Error(error.message) };
+        }
+        if (data) {
           setPortfolio(prev => [...prev, toHolding(data)]);
         }
-      } else {
-        const newHolding: PortfolioHolding = {
-          ...holding,
-          id: crypto.randomUUID(),
-        };
-        setPortfolio(prev => {
-          const next = [...prev, newHolding];
-          saveLocal(next);
-          return next;
-        });
+        return { error: null };
       }
+
+      const newHolding: PortfolioHolding = {
+        ...holding,
+        id: crypto.randomUUID(),
+      };
+      setPortfolio(prev => {
+        const next = [...prev, newHolding];
+        saveLocal(next);
+        return next;
+      });
+      return { error: null };
     },
     [user],
   );
 
   const updateHolding = useCallback(
-    async (id: string, updates: Partial<Omit<PortfolioHolding, 'id'>>) => {
+    async (
+      id: string,
+      updates: Partial<Omit<PortfolioHolding, 'id'>>,
+    ): Promise<{ error: Error | null }> => {
       if (user) {
         const dbUpdates: Record<string, unknown> = {};
         if (updates.symbol !== undefined) dbUpdates.symbol = updates.symbol;
@@ -129,7 +138,15 @@ export function usePortfolio() {
         if (updates.purchasedAt !== undefined) dbUpdates.purchased_at = updates.purchasedAt;
         if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
 
-        await supabase.from('portfolios').update(dbUpdates).eq('id', id).eq('user_id', user.id);
+        const { error } = await supabase
+          .from('portfolios')
+          .update(dbUpdates)
+          .eq('id', id)
+          .eq('user_id', user.id);
+        if (error) {
+          console.error('Failed to update holding:', error);
+          return { error: new Error(error.message) };
+        }
       }
 
       setPortfolio(prev => {
@@ -137,6 +154,7 @@ export function usePortfolio() {
         if (!user) saveLocal(next);
         return next;
       });
+      return { error: null };
     },
     [user],
   );

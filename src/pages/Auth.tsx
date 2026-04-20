@@ -57,11 +57,13 @@ export default function Auth() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex justify-center mb-3">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/60 flex items-center justify-center shadow-lg shadow-primary/25">
               <BarChart3 className="h-7 w-7 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl">AlphaBoard</CardTitle>
+          <CardTitle className="text-2xl font-display font-bold tracking-tight">
+            Alpha<span className="text-primary">Board</span>
+          </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
             {isLogin ? t('loginSubtitle') : t('signupSubtitle')}
           </p>

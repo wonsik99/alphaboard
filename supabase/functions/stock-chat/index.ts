@@ -353,7 +353,7 @@ Deno.serve(async (req) => {
     const systemMessage: ChatMessage = { role: 'system', content: SYSTEM_PROMPT + watchlistContext + portfolioContext };
 
     // Initial AI call with tools - handle tool calls first (non-streaming)
-    let aiMessages: ChatMessage[] = [systemMessage, ...messages];
+    const aiMessages: ChatMessage[] = [systemMessage, ...messages];
     let maxIterations = 5;
     const allWatchlistActions: unknown[] = [];
 

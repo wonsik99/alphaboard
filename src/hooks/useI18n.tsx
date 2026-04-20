@@ -26,7 +26,9 @@ const translations = {
     prevClose: '전일 종가',
     volume: '거래량',
     relatedNews: '관련 뉴스',
-    noChartData: '데이터를 불러올 수 없습니다',
+    noChartData: '차트 데이터가 없습니다',
+    chartLoadError: '차트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.',
+    retry: '다시 시도',
     // Auth
     login: '로그인',
     signup: '회원가입',
@@ -119,7 +121,9 @@ const translations = {
     prevClose: 'Prev Close',
     volume: 'Volume',
     relatedNews: 'Related News',
-    noChartData: 'Unable to load data',
+    noChartData: 'No chart data available',
+    chartLoadError: "Couldn't load the chart. Please try again.",
+    retry: 'Retry',
     // Auth
     login: 'Log in',
     signup: 'Sign up',

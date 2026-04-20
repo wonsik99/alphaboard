@@ -1,53 +1,38 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StockSearch } from '@/components/StockSearch';
 import { useBatchQuotes } from '@/hooks/useStockData';
 import { useWatchlist } from '@/hooks/useWatchlist';
 import { useI18n } from '@/hooks/useI18n';
 import { cn } from '@/lib/utils';
-import { X, Plus, Star, TrendingUp, TrendingDown } from 'lucide-react';
-import { useState } from 'react';
+import { X, Star, TrendingUp, TrendingDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function Watchlist() {
   const { watchlist, addToWatchlist, removeFromWatchlist } = useWatchlist();
   const symbols = watchlist.map(w => w.symbol);
   const { data: quotes, isLoading } = useBatchQuotes(symbols);
-  const [newSymbol, setNewSymbol] = useState('');
   const navigate = useNavigate();
   const { t } = useI18n();
 
-  const handleAdd = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newSymbol.trim()) {
-      addToWatchlist({ symbol: newSymbol.trim().toUpperCase(), name: newSymbol.trim().toUpperCase() });
-      setNewSymbol('');
-    }
-  };
-
   return (
-    <Card>
+    <Card className="sticky top-20">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center">
-              <Star className="h-4 w-4 text-primary" />
+          <CardTitle className="text-base flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center">
+              <Star className="h-3.5 w-3.5 text-accent" />
             </div>
             {t('watchlist')}
           </CardTitle>
         </div>
-        <form onSubmit={handleAdd} className="flex gap-2 mt-2">
-          <Input
-            placeholder={t('addStock')}
-            value={newSymbol}
-            onChange={e => setNewSymbol(e.target.value)}
-            className="glass-subtle border-0 text-sm rounded-xl h-9"
+        <div className="mt-2">
+          <StockSearch
+            onSelect={(symbol, name) => addToWatchlist({ symbol, name })}
+            className="w-full"
           />
-          <Button type="submit" size="icon" variant="secondary" className="shrink-0 rounded-xl h-9 w-9 glass-subtle border-0">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </form>
+        </div>
       </CardHeader>
       <CardContent className="pt-0 space-y-0.5">
         {isLoading ? (
@@ -58,27 +43,36 @@ export function Watchlist() {
             </div>
           ))
         ) : watchlist.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">{t('emptyWatchlist')}</p>
+          <p className="text-sm text-muted-foreground py-8 text-center">{t('emptyWatchlist')}</p>
         ) : (
-          watchlist.map(item => {
+          watchlist.map((item, idx) => {
             const quote = quotes?.find(q => q.symbol === item.symbol);
             const isPositive = quote ? quote.change >= 0 : true;
             return (
               <div
                 key={item.symbol}
-                className="flex items-center justify-between py-2.5 px-3 rounded-xl hover:bg-secondary/40 cursor-pointer transition-all duration-200 group"
+                className={cn(
+                  "flex items-center justify-between py-2 px-2.5 rounded-xl hover:bg-secondary/40 cursor-pointer transition-all duration-200 group animate-enter-fast",
+                  idx < 8 && `stagger-${idx + 1}`
+                )}
                 onClick={() => navigate(`/stock/${item.symbol}`)}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm">{item.symbol}</p>
-                  <p className="text-xs text-muted-foreground truncate">{quote?.name || item.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <div className={cn(
+                      'h-1.5 w-1.5 rounded-full shrink-0',
+                      isPositive ? 'bg-gain' : 'bg-loss',
+                    )} />
+                    <p className="font-semibold text-sm">{item.symbol}</p>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground truncate ml-3">{item.name || quote?.name}</p>
                 </div>
                 <div className="text-right mx-2">
                   {quote ? (
                     <>
                       <p className="text-sm font-mono font-medium">${quote.price.toFixed(2)}</p>
-                      <p className={cn('text-xs font-mono flex items-center justify-end gap-0.5', isPositive ? 'text-gain' : 'text-loss')}>
-                        {isPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+                      <p className={cn('text-[11px] font-mono flex items-center justify-end gap-0.5', isPositive ? 'text-gain' : 'text-loss')}>
+                        {isPositive ? <TrendingUp className="h-2.5 w-2.5" /> : <TrendingDown className="h-2.5 w-2.5" />}
                         {isPositive ? '+' : ''}{quote.changePercent.toFixed(2)}%
                       </p>
                     </>
@@ -89,10 +83,10 @@ export function Watchlist() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                  className="h-5 w-5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                   onClick={(e) => { e.stopPropagation(); removeFromWatchlist(item.symbol); }}
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-2.5 w-2.5" />
                 </Button>
               </div>
             );

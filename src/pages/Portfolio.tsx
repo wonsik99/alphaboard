@@ -53,9 +53,17 @@ import {
   Tooltip as RechartsTooltip,
 } from 'recharts';
 import type { PortfolioHolding } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
-function AddHoldingDialog({ onAdd }: { onAdd: (h: Omit<PortfolioHolding, 'id'>) => void }) {
-  const { t } = useI18n();
+type AddHoldingResult = { error: Error | null };
+
+function AddHoldingDialog({
+  onAdd,
+}: {
+  onAdd: (h: Omit<PortfolioHolding, 'id'>) => Promise<AddHoldingResult>;
+}) {
+  const { t, locale } = useI18n();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [symbol, setSymbol] = useState('');
   const [name, setName] = useState('');
@@ -63,6 +71,7 @@ function AddHoldingDialog({ onAdd }: { onAdd: (h: Omit<PortfolioHolding, 'id'>) 
   const [qty, setQty] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const reset = () => {
     setSymbol('');
@@ -73,10 +82,11 @@ function AddHoldingDialog({ onAdd }: { onAdd: (h: Omit<PortfolioHolding, 'id'>) 
     setNotes('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!symbol || !price || !qty) return;
-    onAdd({
+    if (!symbol || !price || !qty || submitting) return;
+    setSubmitting(true);
+    const { error } = await onAdd({
       symbol: symbol.toUpperCase(),
       name: name || symbol.toUpperCase(),
       purchasePrice: parseFloat(price),
@@ -84,6 +94,15 @@ function AddHoldingDialog({ onAdd }: { onAdd: (h: Omit<PortfolioHolding, 'id'>) 
       purchasedAt: date,
       notes: notes || null,
     });
+    setSubmitting(false);
+    if (error) {
+      toast({
+        title: locale === 'ko' ? '저장 실패' : 'Save failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
     reset();
     setOpen(false);
   };
@@ -140,12 +159,12 @@ function AddHoldingDialog({ onAdd }: { onAdd: (h: Omit<PortfolioHolding, 'id'>) 
               <Label>{t('quantity')}</Label>
               <Input
                 type="number"
-                step="0.01"
-                min="0"
+                step="1"
+                min="1"
                 required
                 value={qty}
                 onChange={e => setQty(e.target.value)}
-                placeholder="10"
+                placeholder="1"
                 className="rounded-xl"
               />
             </div>
@@ -168,7 +187,11 @@ function AddHoldingDialog({ onAdd }: { onAdd: (h: Omit<PortfolioHolding, 'id'>) 
               className="rounded-xl"
             />
           </div>
-          <Button type="submit" className="w-full rounded-xl" disabled={!symbol || !price || !qty}>
+          <Button
+            type="submit"
+            className="w-full rounded-xl"
+            disabled={!symbol || !price || !qty || submitting}
+          >
             {t('save')}
           </Button>
         </form>
@@ -182,23 +205,39 @@ function EditHoldingDialog({
   onSave,
 }: {
   holding: PortfolioHolding;
-  onSave: (id: string, updates: Partial<Omit<PortfolioHolding, 'id'>>) => void;
+  onSave: (
+    id: string,
+    updates: Partial<Omit<PortfolioHolding, 'id'>>,
+  ) => Promise<AddHoldingResult>;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [price, setPrice] = useState(String(holding.purchasePrice));
   const [qty, setQty] = useState(String(holding.quantity));
   const [date, setDate] = useState(holding.purchasedAt);
   const [notes, setNotes] = useState(holding.notes || '');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(holding.id, {
+    if (submitting) return;
+    setSubmitting(true);
+    const { error } = await onSave(holding.id, {
       purchasePrice: parseFloat(price),
       quantity: parseFloat(qty),
       purchasedAt: date,
       notes: notes || null,
     });
+    setSubmitting(false);
+    if (error) {
+      toast({
+        title: locale === 'ko' ? '저장 실패' : 'Save failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
     setOpen(false);
   };
 
@@ -233,8 +272,8 @@ function EditHoldingDialog({
               <Label>{t('quantity')}</Label>
               <Input
                 type="number"
-                step="0.01"
-                min="0"
+                step="1"
+                min="1"
                 required
                 value={qty}
                 onChange={e => setQty(e.target.value)}
@@ -259,7 +298,7 @@ function EditHoldingDialog({
               className="rounded-xl"
             />
           </div>
-          <Button type="submit" className="w-full rounded-xl">
+          <Button type="submit" className="w-full rounded-xl" disabled={submitting}>
             {t('save')}
           </Button>
         </form>
@@ -318,7 +357,7 @@ export default function Portfolio() {
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
+          <Card className="animate-enter stagger-1">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xs text-muted-foreground">{t('totalValue')}</p>
@@ -336,7 +375,7 @@ export default function Portfolio() {
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="animate-enter stagger-2">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xs text-muted-foreground">{t('totalInvested')}</p>
@@ -347,7 +386,7 @@ export default function Portfolio() {
               </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className={cn("animate-enter stagger-3", isPositive ? 'glow-gain' : 'glow-loss')}>
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xs text-muted-foreground">{t('totalGain')}</p>
@@ -367,7 +406,7 @@ export default function Portfolio() {
               )}
             </CardContent>
           </Card>
-          <Card>
+          <Card className="animate-enter stagger-4">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xs text-muted-foreground">{t('dayChange')}</p>
@@ -392,10 +431,10 @@ export default function Portfolio() {
 
         {/* Allocation Chart — only useful with 2+ holdings */}
         {pieData.length > 1 && (
-          <Card>
+          <Card className="animate-enter stagger-5">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center gap-2">
-                <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center">
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
                   <PieChartIcon className="h-4 w-4 text-primary" />
                 </div>
                 {t('allocation')}
@@ -440,11 +479,11 @@ export default function Portfolio() {
         )}
 
         {/* Holdings */}
-        <Card>
+        <Card className="animate-enter stagger-6">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <CardTitle className="text-lg flex items-center gap-2">
-                <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center">
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
                   <BarChart3 className="h-4 w-4 text-primary" />
                 </div>
                 {t('holdingsSummary')}
@@ -649,7 +688,7 @@ export default function Portfolio() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
-                <div className="h-7 w-7 rounded-full bg-primary/15 flex items-center justify-center">
+                <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
                   <Brain className="h-4 w-4 text-primary" />
                 </div>
                 {t('aiAnalysis')}

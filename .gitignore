@@ -32,3 +32,8 @@ dist-ssr
 bun.lock
 bun.lockb
 supabase/.temp/
+
+# Screenshots
+*.png
+.playwright-mcp/
+.screenshots/

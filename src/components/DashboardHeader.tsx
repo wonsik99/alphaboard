@@ -16,78 +16,80 @@ export function DashboardHeader() {
   return (
     <header className="glass-strong sticky top-0 z-50 border-b-0">
       <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
-            <BarChart3 className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <h1 className="text-xl font-semibold tracking-tight">AlphaBoard</h1>
-          <nav className="hidden sm:flex items-center gap-1 ml-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'h-8 px-3 text-xs gap-1.5 rounded-full transition-all',
-                location.pathname === '/' && 'bg-secondary/60 text-foreground'
-              )}
-              onClick={() => navigate('/')}
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              {t('dashboard')}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'h-8 px-3 text-xs gap-1.5 rounded-full transition-all',
-                location.pathname === '/portfolio' && 'bg-secondary/60 text-foreground'
-              )}
-              onClick={() => navigate('/portfolio')}
-            >
-              <Briefcase className="h-3.5 w-3.5" />
-              {t('portfolio')}
-            </Button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2.5 group"
+          >
+            <div className="relative h-9 w-9 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/60 flex items-center justify-center shadow-lg shadow-primary/25 group-hover:shadow-primary/40 group-hover:scale-105 transition-all duration-200">
+              <BarChart3 className="h-[18px] w-[18px] text-primary-foreground" />
+            </div>
+            <span className="font-display text-xl font-bold tracking-tight leading-none">
+              Alpha<span className="text-primary">Board</span>
+            </span>
+          </button>
+          <nav className="hidden sm:flex items-center gap-1 ml-2">
+            {[
+              { path: '/', icon: LayoutDashboard, label: t('dashboard') },
+              { path: '/portfolio', icon: Briefcase, label: t('portfolio') },
+            ].map(({ path, icon: Icon, label }) => (
+              <Button
+                key={path}
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  'h-8 px-3 text-xs gap-1.5 rounded-full transition-all font-medium',
+                  location.pathname === path
+                    ? 'bg-primary/10 text-primary hover:bg-primary/15'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+                onClick={() => navigate(path)}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </Button>
+            ))}
           </nav>
         </div>
-        <div className="flex items-center gap-2">
-          <p className="text-xs text-muted-foreground hidden sm:block font-medium mr-1">
+        <div className="flex items-center gap-1.5">
+          <p className="text-[11px] text-muted-foreground hidden sm:block font-medium mr-2 tracking-wide uppercase">
             {t('subtitle')}
           </p>
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 rounded-full glass-subtle hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-all"
+            className="h-8 w-8 p-0 rounded-full text-muted-foreground hover:text-foreground transition-colors"
             onClick={toggleTheme}
             title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
           >
-            {theme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+            {theme === 'dark' ? <Sun className="h-[14px] w-[14px]" /> : <Moon className="h-[14px] w-[14px]" />}
           </Button>
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 px-3 text-xs gap-1.5 rounded-full glass-subtle hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-all"
+            className="h-8 px-2.5 text-xs gap-1 rounded-full text-muted-foreground hover:text-foreground transition-colors font-medium"
             onClick={() => setLocale(locale === 'ko' ? 'en' : 'ko')}
           >
-            <Globe className="h-3.5 w-3.5" />
-            {locale === 'ko' ? 'EN' : '한국어'}
+            <Globe className="h-[14px] w-[14px]" />
+            {locale === 'ko' ? 'EN' : 'KO'}
           </Button>
           {user ? (
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 px-3 text-xs gap-1.5 rounded-full glass-subtle hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-all"
+              className="h-8 px-2.5 text-xs gap-1 rounded-full text-muted-foreground hover:text-foreground transition-colors font-medium"
               onClick={() => signOut()}
             >
-              <LogOut className="h-3.5 w-3.5" />
-              {t('logout')}
+              <LogOut className="h-[14px] w-[14px]" />
+              <span className="hidden sm:inline">{t('logout')}</span>
             </Button>
           ) : (
             <Button
-              variant="ghost"
               size="sm"
-              className="h-8 px-3 text-xs gap-1.5 rounded-full glass-subtle hover:bg-secondary/50 text-muted-foreground hover:text-foreground transition-all"
+              className="h-8 px-3.5 text-xs gap-1.5 rounded-full font-semibold shadow-md shadow-primary/20"
               onClick={() => navigate('/auth')}
             >
-              <LogIn className="h-3.5 w-3.5" />
+              <LogIn className="h-[14px] w-[14px]" />
               {t('login')}
             </Button>
           )}

@@ -7,6 +7,14 @@ const FUNCTION_NAME = 'finnhub-data';
 async function invokeEdgeFunction<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(functionName, { body });
   if (error) throw new Error(error.message);
+  // Edge Function may return a structured error payload with HTTP 2xx-ish
+  // via supabase-js (e.g. 502 is surfaced through `error` above, but some
+  // paths resolve with a JSON body). Guard against that by checking for an
+  // explicit `error` field on the body itself.
+  if (data && typeof data === 'object' && 'error' in (data as Record<string, unknown>)) {
+    const payload = data as { error: string; message?: string };
+    throw new Error(payload.message || payload.error);
+  }
   return data as T;
 }
 
@@ -32,12 +40,18 @@ export function useStockQuote(symbol: string) {
 export function useStockTimeSeries(symbol: string, range: TimeRange) {
   return useQuery<StockTimeSeriesPoint[]>({
     queryKey: ['stock-timeseries', symbol, range],
-    queryFn: () => invokeEdgeFunction(FUNCTION_NAME, { action: 'timeseries', symbol, range }),
+    queryFn: () => invokeEdgeFunction<StockTimeSeriesPoint[]>(FUNCTION_NAME, {
+      action: 'timeseries',
+      symbol,
+      range,
+    }),
     enabled: !!symbol,
-    staleTime: 300000, // 5 min - Alpha Vantage has strict rate limits
-    refetchInterval: 300000,
+    // Yahoo is fast and has no strict per-minute quota for us, so we can
+    // refresh more aggressively than the old Alpha Vantage-backed flow.
+    staleTime: 60_000,
+    refetchInterval: range === '1D' ? 60_000 : 300_000,
     retry: 2,
-    retryDelay: 15000, // Wait 15s before retry to let rate limit reset
+    retryDelay: 2_000,
   });
 }
 

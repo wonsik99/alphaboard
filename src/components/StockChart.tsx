@@ -5,7 +5,7 @@ import { useStockTimeSeries, useStockQuote } from '@/hooks/useStockData';
 import { StockSearch } from '@/components/StockSearch';
 import { useI18n } from '@/hooks/useI18n';
 import type { TimeRange } from '@/lib/types';
-import { formatChartAxisLabel, formatChartPrice, formatChartTooltipLabel, getChartDirection } from '@/lib/chart';
+import { buildChartTicks, formatChartAxisLabel, formatChartPrice, formatChartTooltipLabel, getChartDirection, padIntradayTimeline } from '@/lib/chart';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp, TrendingDown, BarChart3, LineChart } from 'lucide-react';
@@ -29,32 +29,40 @@ export function StockChart() {
   const [chartType, setChartType] = useState<ChartType>('line');
   const { locale, t } = useI18n();
 
-  const { data: timeseries, isLoading: tsLoading } = useStockTimeSeries(symbol, range);
+  const {
+    data: timeseries,
+    isLoading: tsLoading,
+    isError: tsError,
+    refetch: refetchTimeseries,
+  } = useStockTimeSeries(symbol, range);
   const { data: quote } = useStockQuote(symbol);
 
+  const chartData = padIntradayTimeline(timeseries, range);
   const quoteIsPositive = quote ? quote.change >= 0 : true;
-  const chartIsPositive = getChartDirection(timeseries, quote?.change ?? 0);
-  const strokeColor = chartIsPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
-  const fillColor = chartIsPositive ? 'hsl(152, 69%, 40%)' : 'hsl(0, 72%, 55%)';
+  const chartIsPositive = getChartDirection(chartData, quote?.change ?? 0);
+  const strokeColor = chartIsPositive ? 'hsl(160, 84%, 39%)' : 'hsl(0, 84%, 60%)';
+  const fillColor = chartIsPositive ? 'hsl(160, 84%, 39%)' : 'hsl(0, 84%, 60%)';
+  const xAxisTicks = buildChartTicks(chartData, range);
 
   return (
-    <Card>
+    <Card className="overflow-hidden relative">
+      <div className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
       <CardHeader className="pb-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
-              {symbol}
+              <span className="font-display font-bold">{symbol}</span>
               {quote && (
                 <span className="text-sm text-muted-foreground font-normal">{quote.name}</span>
               )}
             </CardTitle>
             {quote && (
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-2xl font-semibold font-mono tracking-tight">
+              <div className="flex items-center gap-2.5 mt-1.5">
+                <span className="text-2xl font-bold font-mono tracking-tight">
                   ${quote.price.toFixed(2)}
                 </span>
-                <span className={cn('flex items-center gap-1 text-sm font-mono font-medium', quoteIsPositive ? 'text-gain' : 'text-loss')}>
-                  <div className={cn('flex items-center justify-center h-5 w-5 rounded-full', quoteIsPositive ? 'bg-gain/15' : 'bg-loss/15')}>
+                <span className={cn('flex items-center gap-1.5 text-sm font-mono font-semibold', quoteIsPositive ? 'text-gain' : 'text-loss')}>
+                  <div className={cn('flex items-center justify-center h-5 w-5 rounded-md', quoteIsPositive ? 'bg-gain/10' : 'bg-loss/10')}>
                     {quoteIsPositive ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                   </div>
                   {quoteIsPositive ? '+' : ''}{quote.change.toFixed(2)} ({quoteIsPositive ? '+' : ''}{quote.changePercent.toFixed(2)}%)
@@ -109,12 +117,24 @@ export function StockChart() {
       <CardContent className="pt-0">
         {tsLoading ? (
           <Skeleton className="h-[300px] w-full rounded-xl" />
-        ) : timeseries && timeseries.length > 0 ? (
+        ) : tsError ? (
+          <div className="h-[300px] flex flex-col items-center justify-center gap-3 text-muted-foreground">
+            <span className="text-sm">{t('chartLoadError')}</span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-full"
+              onClick={() => refetchTimeseries()}
+            >
+              {t('retry')}
+            </Button>
+          </div>
+        ) : chartData && chartData.length > 0 ? (
           chartType === 'candle' ? (
-            <CandlestickChart data={timeseries} range={range} locale={locale} height={300} emptyLabel={t('noData')} />
+            <CandlestickChart data={chartData} range={range} locale={locale} height={300} emptyLabel={t('noData')} />
           ) : (
             <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={timeseries}>
+              <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={fillColor} stopOpacity={0.25} />
@@ -129,6 +149,7 @@ export function StockChart() {
                   tickLine={false}
                   axisLine={false}
                   minTickGap={24}
+                  ticks={xAxisTicks}
                 />
                 <YAxis
                   domain={['auto', 'auto']}
@@ -151,7 +172,7 @@ export function StockChart() {
                   labelStyle={{ color: 'hsl(var(--foreground))' }}
                   itemStyle={{ color: strokeColor }}
                   labelFormatter={(label) => formatChartTooltipLabel(String(label), range, locale)}
-                  formatter={(value: number) => [formatChartPrice(value), t('close')]}
+                  formatter={(value: number | null) => [formatChartPrice(value), t('close')]}
                 />
                 <Area
                   type="monotone"
@@ -159,6 +180,10 @@ export function StockChart() {
                   stroke={strokeColor}
                   strokeWidth={2}
                   fill="url(#chartGradient)"
+                  connectNulls={false}
+                  isAnimationActive={true}
+                  animationDuration={800}
+                  animationEasing="ease-out"
                 />
               </AreaChart>
             </ResponsiveContainer>
