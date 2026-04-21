@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
 import type { WatchlistItem } from '@/lib/types';
 
 const STORAGE_KEY = 'stock-watchlist';
@@ -45,6 +46,7 @@ function markMigrated(userId: string) {
 
 export function useWatchlist() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>(loadLocalWatchlist);
   const [loading, setLoading] = useState(false);
 
@@ -95,32 +97,66 @@ export function useWatchlist() {
       });
   }, [user]);
 
-  const addToWatchlist = useCallback((item: WatchlistItem) => {
-    setWatchlist(prev => {
-      if (prev.some(w => w.symbol === item.symbol)) return prev;
-      const next = [...prev, item];
+  const addToWatchlist = useCallback(
+    async (item: WatchlistItem) => {
+      // Dedupe against current state without triggering a re-render.
+      if (watchlist.some(w => w.symbol === item.symbol)) return;
 
-      if (user) {
-        supabase.from('watchlists').insert({ user_id: user.id, symbol: item.symbol, name: item.name });
-      } else {
+      // Optimistic update — show the item immediately while we persist.
+      const next = [...watchlist, item];
+      setWatchlist(next);
+
+      if (!user) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return;
       }
-      return next;
-    });
-  }, [user]);
 
-  const removeFromWatchlist = useCallback((symbol: string) => {
-    setWatchlist(prev => {
-      const next = prev.filter(w => w.symbol !== symbol);
+      const { error } = await supabase
+        .from('watchlists')
+        .insert({ user_id: user.id, symbol: item.symbol, name: item.name });
+      if (error) {
+        console.error('Failed to add watchlist entry:', error);
+        // Roll back so the UI matches the actual DB state.
+        setWatchlist(prev => prev.filter(w => w.symbol !== item.symbol));
+        toast({
+          title: 'Failed to add to watchlist',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
+    },
+    [user, watchlist, toast],
+  );
 
-      if (user) {
-        supabase.from('watchlists').delete().eq('user_id', user.id).eq('symbol', symbol).then();
-      } else {
+  const removeFromWatchlist = useCallback(
+    async (symbol: string) => {
+      const previous = watchlist;
+      const next = previous.filter(w => w.symbol !== symbol);
+      if (next.length === previous.length) return; // nothing to remove
+      setWatchlist(next);
+
+      if (!user) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return;
       }
-      return next;
-    });
-  }, [user]);
+
+      const { error } = await supabase
+        .from('watchlists')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('symbol', symbol);
+      if (error) {
+        console.error('Failed to remove watchlist entry:', error);
+        setWatchlist(previous);
+        toast({
+          title: 'Failed to remove from watchlist',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
+    },
+    [user, watchlist, toast],
+  );
 
   const isInWatchlist = useCallback((symbol: string) => {
     return watchlist.some(w => w.symbol === symbol);
