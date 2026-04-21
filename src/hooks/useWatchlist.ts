@@ -4,6 +4,12 @@ import { useAuth } from '@/hooks/useAuth';
 import type { WatchlistItem } from '@/lib/types';
 
 const STORAGE_KEY = 'stock-watchlist';
+// Per-user flag that marks "this account has been initialized in Supabase".
+// Once set, an empty response from the `watchlists` table is treated as an
+// intentional empty state instead of triggering a re-seed from the local
+// DEFAULT_WATCHLIST. Without this flag, a user who deletes every entry would
+// see the default five stocks reappear on every refresh.
+const MIGRATED_KEY_PREFIX = 'stock-watchlist-migrated:';
 const DEFAULT_WATCHLIST: WatchlistItem[] = [
   { symbol: 'AAPL', name: 'Apple Inc.' },
   { symbol: 'MSFT', name: 'Microsoft Corporation' },
@@ -18,6 +24,22 @@ function loadLocalWatchlist(): WatchlistItem[] {
     return stored ? JSON.parse(stored) : DEFAULT_WATCHLIST;
   } catch {
     return DEFAULT_WATCHLIST;
+  }
+}
+
+function hasMigrated(userId: string): boolean {
+  try {
+    return localStorage.getItem(`${MIGRATED_KEY_PREFIX}${userId}`) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markMigrated(userId: string) {
+  try {
+    localStorage.setItem(`${MIGRATED_KEY_PREFIX}${userId}`, '1');
+  } catch {
+    /* ignore quota errors */
   }
 }
 
@@ -39,19 +61,37 @@ export function useWatchlist() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: true })
       .then(({ data, error }) => {
-        if (!error && data && data.length > 0) {
-          setWatchlist(data);
-        } else if (!error && data && data.length === 0) {
-          // First login: migrate localStorage to DB
-          const local = loadLocalWatchlist();
-          if (local.length > 0) {
-            const rows = local.map(w => ({ user_id: user.id, symbol: w.symbol, name: w.name }));
-            supabase.from('watchlists').insert(rows).then(() => {
-              setWatchlist(local);
-            });
-          }
+        if (error) {
+          setLoading(false);
+          return;
         }
-        setLoading(false);
+        if (data && data.length > 0) {
+          setWatchlist(data);
+          markMigrated(user.id);
+          setLoading(false);
+          return;
+        }
+        // DB is empty. If we've already migrated this account once, the user
+        // intentionally cleared their list — respect that and show empty.
+        if (hasMigrated(user.id)) {
+          setWatchlist([]);
+          setLoading(false);
+          return;
+        }
+        // First login: migrate any anonymous localStorage entries to the DB.
+        const local = loadLocalWatchlist();
+        if (local.length > 0) {
+          const rows = local.map(w => ({ user_id: user.id, symbol: w.symbol, name: w.name }));
+          supabase.from('watchlists').insert(rows).then(() => {
+            setWatchlist(local);
+            markMigrated(user.id);
+            setLoading(false);
+          });
+        } else {
+          setWatchlist([]);
+          markMigrated(user.id);
+          setLoading(false);
+        }
       });
   }, [user]);
 
